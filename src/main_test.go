@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -316,6 +317,37 @@ func TestSelfDogfoodGraphEmitsPolicyAndComplexityFacts(t *testing.T) {
 	}
 }
 
+func TestFixtureLanguageZoneCandidatesSatisfyQualityInvariants(t *testing.T) {
+	graph := buildFixtureGraph(t)
+	candidates := languageZoneCandidates(graph)
+	if len(candidates) == 0 {
+		t.Fatal("fixture emitted no language-zone candidates")
+	}
+	assertLanguageZoneCandidateQuality(t, graph, candidates)
+	if !hasCandidateForPackage(candidates, "example.com/shop/order") {
+		t.Fatalf("candidates = %#v, missing order package candidate", candidates)
+	}
+	if !hasCandidateForPackage(candidates, "example.com/shop/paymentclient") {
+		t.Fatalf("candidates = %#v, missing paymentclient package candidate", candidates)
+	}
+}
+
+func TestSelfDogfoodLanguageZoneCandidatesSatisfyQualityInvariants(t *testing.T) {
+	graph, err := indexer.BuildGraph(indexer.Options{
+		Path:           "..",
+		WorkspaceRoot:  "..",
+		SimulateChange: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates := languageZoneCandidates(graph)
+	if len(candidates) == 0 {
+		return
+	}
+	assertLanguageZoneCandidateQuality(t, graph, candidates)
+}
+
 func TestSelfDogfoodProblemsReportHasNoPolicyFailures(t *testing.T) {
 	graph, err := indexer.BuildGraph(indexer.Options{
 		Path:           "..",
@@ -516,6 +548,95 @@ func hasObservation(graph core.Graph, name string) bool {
 		}
 	}
 	return false
+}
+
+func languageZoneCandidates(graph core.Graph) []core.Observation {
+	var out []core.Observation
+	for _, observation := range graph.Observations {
+		if observation.Name == core.ObservationNameLanguageZoneCandidate {
+			out = append(out, observation)
+		}
+	}
+	return out
+}
+
+func observationByID(graph core.Graph, id string) *core.Observation {
+	for i := range graph.Observations {
+		if graph.Observations[i].ID == id {
+			return &graph.Observations[i]
+		}
+	}
+	return nil
+}
+
+func hasCandidateForPackage(candidates []core.Observation, packagePath string) bool {
+	for _, candidate := range candidates {
+		if candidate.Attributes["packagePath"] == packagePath {
+			return true
+		}
+	}
+	return false
+}
+
+func candidateTerms(candidate core.Observation) []string {
+	raw := candidate.Attributes["terms"]
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	var terms []string
+	for _, part := range parts {
+		term := strings.TrimSpace(part)
+		if term != "" {
+			terms = append(terms, term)
+		}
+	}
+	return terms
+}
+
+func assertLanguageZoneCandidateQuality(t *testing.T, graph core.Graph, candidates []core.Observation) {
+	t.Helper()
+	stopTerms := map[string]bool{
+		"com": true, "org": true, "net": true, "io": true, "github": true, "gitlab": true,
+		"example": true, "internal": true, "testdata": true, "workspace": true, "go": true,
+	}
+	for _, candidate := range candidates {
+		if candidate.Attributes["packagePath"] == "" {
+			t.Fatalf("candidate = %#v, missing packagePath", candidate)
+		}
+		terms := candidateTerms(candidate)
+		if len(terms) == 0 {
+			t.Fatalf("candidate = %#v, missing terms", candidate)
+		}
+		termCount, err := strconv.Atoi(candidate.Attributes["termCount"])
+		if err != nil || termCount != len(terms) {
+			t.Fatalf("candidate = %#v, termCount should match terms", candidate)
+		}
+		cooccurrenceCount, err := strconv.Atoi(candidate.Attributes["cooccurrenceCount"])
+		if err != nil || cooccurrenceCount <= 0 {
+			t.Fatalf("candidate = %#v, cooccurrenceCount should be positive", candidate)
+		}
+		if len(candidate.Evidence) == 0 {
+			t.Fatalf("candidate = %#v, missing evidence", candidate)
+		}
+		if core.IsPlaceholderID(candidate.TargetID) {
+			t.Fatalf("candidate = %#v, target must not be placeholder-backed", candidate)
+		}
+		for _, term := range terms {
+			if stopTerms[term] {
+				t.Fatalf("candidate = %#v, contains stop term %q", candidate, term)
+			}
+		}
+		for _, evidenceID := range candidate.Evidence {
+			evidence := observationByID(graph, evidenceID)
+			if evidence == nil {
+				t.Fatalf("candidate = %#v, missing evidence observation %s", candidate, evidenceID)
+			}
+			if evidence.Name == core.ObservationNameVocabularyIncompleteDependency {
+				t.Fatalf("candidate = %#v, uses incomplete dependency evidence %s", candidate, evidenceID)
+			}
+		}
+	}
 }
 
 func hasDiagnostic(graph core.Graph, status, reason string) bool {
