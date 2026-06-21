@@ -16,6 +16,8 @@ Implemented core guardrails:
 5. Zero-config vocabulary extraction emits `vocabulary.term` observations.
 6. Zero-config vocabulary co-occurrence emits `vocabulary.cooccurrence` observations.
 7. `internal/observations` provides convenience projections over observations.
+8. Language-zone candidate analysis emits package-scoped candidate observations for
+   human inspection.
 
 Projection helpers are not canonical semantics. They are read-only summaries over
 `graph.Observations` for callers that want common groupings without duplicating traversal
@@ -36,13 +38,13 @@ ubiquitous_language
   Validates configured DDD language decisions. It is not the discovery analyzer.
 
 language_zone_candidate
-  Future analyzer. Should emit candidate evidence before any bounded-context conclusion.
+  Emits candidate language-zone evidence before any bounded-context conclusion.
 ```
 
 ## Next Steps
 
 1. Add more observation projections only when they remove real duplication for callers.
-2. Add language-zone candidate evidence as observations, not policy results or warnings.
+2. Add ambiguity, synonym, and bridge-symbol evidence as observations.
 3. Keep placeholder-backed evidence from supporting complete conclusions.
 4. Keep configured validation separate from zero-config discovery.
 5. Avoid viewer-specific assumptions in analyzer output.

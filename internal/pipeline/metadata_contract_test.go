@@ -5,6 +5,7 @@ import (
 
 	"go-safedesign/internal/analyzers/complexity"
 	"go-safedesign/internal/analyzers/deppolicy"
+	"go-safedesign/internal/analyzers/langzone"
 	"go-safedesign/internal/analyzers/moddep"
 	"go-safedesign/internal/analyzers/ubilang"
 	"go-safedesign/internal/analyzers/vocab"
@@ -16,6 +17,7 @@ func TestProductionAnalyzerMetadataSatisfiesContract(t *testing.T) {
 	all := []pipeline.AnalyzerMetadata{
 		complexity.Metadata(),
 		deppolicy.Metadata(),
+		langzone.Metadata(),
 		moddep.Metadata(),
 		ublang.Metadata(),
 		vocab.Metadata(),

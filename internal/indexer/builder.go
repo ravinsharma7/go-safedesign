@@ -9,6 +9,7 @@ import (
 
 	"go-safedesign/internal/analyzers/complexity"
 	"go-safedesign/internal/analyzers/deppolicy"
+	"go-safedesign/internal/analyzers/langzone"
 	"go-safedesign/internal/analyzers/moddep"
 	"go-safedesign/internal/analyzers/ubilang"
 	"go-safedesign/internal/analyzers/vocab"
@@ -192,6 +193,7 @@ func BuildGraph(opts Options) (Graph, error) {
 	b.runAnalyzer(moddep.Analyzer{})
 	b.runAnalyzer(vocab.Analyzer{})
 	b.runAnalyzer(vocabco.Analyzer{})
+	b.runAnalyzer(langzone.Analyzer{})
 	b.runAnalyzer(ublang.Analyzer{})
 	if !opts.DisableComplexity {
 		b.runAnalyzer(complexity.Analyzer{})
