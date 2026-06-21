@@ -23,12 +23,12 @@ func (Analyzer) Metadata() pipeline.AnalyzerMetadata {
 		ID:                    ID,
 		Version:               Version,
 		Stage:                 pipeline.StageDDDClassification,
-		InputFactKinds:        []string{"package", "file", "type", "interface", "struct", "function", "method", "field", "import", "unresolved_call", "imports", "depends_on"},
+		InputFactKinds:        []string{core.NodeKindPackage, core.NodeKindFile, core.NodeKindType, core.NodeKindInterface, core.NodeKindStruct, core.NodeKindFunction, core.NodeKindMethod, core.NodeKindField, core.NodeKindImport, core.NodeKindUnresolvedCall, core.EdgeKindImports, core.EdgeKindDependsOn},
 		MinimumRequiredTrust:  core.TrustSyntaxObserved,
 		MaximumEmittedTrust:   core.TrustTypeResolved,
-		EmittedFactKinds:      []string{"observation"},
+		EmittedFactKinds:      []string{core.FactKindObservation},
 		ConfigurationSection:  "vocabularyExtraction",
-		FailureMode:           "partial",
+		FailureMode:           pipeline.FailureModePartial,
 		IncompleteInputPolicy: pipeline.IncompleteInputAllow,
 	}
 }
@@ -48,10 +48,10 @@ func (Analyzer) evaluate(graph core.Graph) []core.Observation {
 		observations = append(observations, observationsForNode(node)...)
 	}
 	for _, edge := range graph.Edges {
-		if edge.Kind != "imports" && edge.Kind != "depends_on" {
+		if edge.Kind != core.EdgeKindImports && edge.Kind != core.EdgeKindDependsOn {
 			continue
 		}
-		if edge.Complete && !edge.Synthetic && !strings.HasPrefix(edge.To, "placeholder:") {
+		if !core.IsIncompleteEdge(edge) {
 			continue
 		}
 		observations = append(observations, incompleteDependencyObservation(edge))
@@ -61,7 +61,7 @@ func (Analyzer) evaluate(graph core.Graph) []core.Observation {
 }
 
 func observationsForNode(node core.Node) []core.Observation {
-	if node.Synthetic || node.Kind == "placeholder" || strings.HasPrefix(node.ID, "placeholder:") {
+	if core.IsPlaceholderNode(node) {
 		return nil
 	}
 	if !vocabularyNodeKind(node.Kind) {
@@ -79,8 +79,8 @@ func observationsForNode(node core.Node) []core.Observation {
 		}
 		observations = append(observations, core.Observation{
 			ID:         observationID("term", node.ID, strconv.Itoa(idx), token),
-			Kind:       "observation",
-			Name:       "vocabulary.term",
+			Kind:       core.FactKindObservation,
+			Name:       core.ObservationNameVocabularyTerm,
 			Value:      token,
 			TargetID:   node.ID,
 			TargetKind: "node",
@@ -92,7 +92,7 @@ func observationsForNode(node core.Node) []core.Observation {
 				"modulePath":  node.ModulePath,
 			},
 			Evidence:   []string{node.ID},
-			Source:     "observed",
+			Source:     core.ObservationSourceObserved,
 			TrustLevel: node.TrustLevel,
 			Freshness:  freshness(node.Freshness),
 			SourceFile: node.SourceFile,
@@ -105,11 +105,11 @@ func observationsForNode(node core.Node) []core.Observation {
 func incompleteDependencyObservation(edge core.Edge) core.Observation {
 	return core.Observation{
 		ID:         observationID("incomplete_dependency", edge.ID),
-		Kind:       "observation",
-		Name:       "vocabulary.incomplete_dependency",
+		Kind:       core.FactKindObservation,
+		Name:       core.ObservationNameVocabularyIncompleteDependency,
 		Value:      edge.To,
 		TargetID:   edge.ID,
-		TargetKind: "edge",
+		TargetKind: core.FactKindEdge,
 		Attributes: map[string]string{
 			"edgeKind": edge.Kind,
 			"from":     edge.From,
@@ -117,9 +117,9 @@ func incompleteDependencyObservation(edge core.Edge) core.Observation {
 			"reason":   edge.Reason,
 		},
 		Evidence:   []string{edge.ID},
-		Source:     "observed",
+		Source:     core.ObservationSourceObserved,
 		TrustLevel: edge.TrustLevel,
-		Freshness:  "fresh",
+		Freshness:  core.FreshnessFresh,
 		SourceFile: edge.SourceFile,
 		LineRange:  edge.LineRange,
 	}
@@ -127,7 +127,7 @@ func incompleteDependencyObservation(edge core.Edge) core.Observation {
 
 func vocabularyNodeKind(kind string) bool {
 	switch kind {
-	case "package", "file", "type", "interface", "struct", "function", "method", "field", "import", "unresolved_call":
+	case core.NodeKindPackage, core.NodeKindFile, core.NodeKindType, core.NodeKindInterface, core.NodeKindStruct, core.NodeKindFunction, core.NodeKindMethod, core.NodeKindField, core.NodeKindImport, core.NodeKindUnresolvedCall:
 		return true
 	default:
 		return false
@@ -135,7 +135,7 @@ func vocabularyNodeKind(kind string) bool {
 }
 
 func originalForNode(node core.Node) string {
-	if node.Kind == "file" && node.SourceFile != "" {
+	if node.Kind == core.NodeKindFile && node.SourceFile != "" {
 		base := filepath.Base(node.SourceFile)
 		return strings.TrimSuffix(base, filepath.Ext(base))
 	}
@@ -144,13 +144,13 @@ func originalForNode(node core.Node) string {
 
 func freshness(value string) string {
 	if value == "" {
-		return "fresh"
+		return core.FreshnessFresh
 	}
 	return value
 }
 
 func observationID(parts ...string) string {
-	return "observation:vocabulary:" + core.HashBytes([]byte(strings.Join(parts, "\x00")))
+	return core.IDPrefixObservation + "vocabulary:" + core.HashBytes([]byte(strings.Join(parts, "\x00")))
 }
 
 func SplitWords(value string) []string {

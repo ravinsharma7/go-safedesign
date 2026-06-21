@@ -224,11 +224,11 @@ func (b *graphBuilder) runStage(stage pipeline.Stage, fn func() error) error {
 	b.currentRun = run
 	err := fn()
 	finished := time.Now().UTC()
-	status := "completed"
+	status := core.StatusCompleted
 	if err != nil {
-		status = "analysis_error"
+		status = core.StatusAnalysisError
 	} else if len(b.diagnostics) > beforeDiagnostics {
-		status = "partial"
+		status = core.StatusPartial
 	}
 	var diagnostics []string
 	for _, diagnostic := range b.diagnostics[beforeDiagnostics:] {
@@ -259,7 +259,7 @@ func (b *graphBuilder) runAnalyzer(analyzer pipeline.Analyzer) {
 			Stage:           string(metadata.Stage),
 			StartedAt:       started.Format(time.RFC3339Nano),
 			FinishedAt:      started.Format(time.RFC3339Nano),
-			Status:          "partial",
+			Status:          core.StatusPartial,
 			Diagnostics:     diagnosticMessages(diagnostics),
 			EmittedFacts:    len(diagnostics),
 		}
@@ -279,7 +279,7 @@ func (b *graphBuilder) runAnalyzer(analyzer pipeline.Analyzer) {
 	})
 	validationDiagnostics := pipeline.ValidateAnalyzerResult(b.graph(), metadata, result)
 	if len(validationDiagnostics) > 0 {
-		run.Status = "analysis_error"
+		run.Status = core.StatusAnalysisError
 		run.Diagnostics = append(run.Diagnostics, diagnosticMessages(validationDiagnostics)...)
 		run.EmittedFacts = 0
 		for i := range validationDiagnostics {
@@ -305,7 +305,7 @@ func (b *graphBuilder) runAnalyzer(analyzer pipeline.Analyzer) {
 			Reason:     err.Error(),
 			Stage:      string(metadata.Stage),
 			AnalyzerID: metadata.ID,
-			Status:     "analysis_error",
+			Status:     core.StatusAnalysisError,
 		})
 	}
 	b.runs = append(b.runs, run)

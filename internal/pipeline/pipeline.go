@@ -40,6 +40,10 @@ type AnalyzerMetadata struct {
 	IncompleteInputPolicy IncompleteInputPolicy
 }
 
+const (
+	FailureModePartial = "partial"
+)
+
 type IncompleteInputPolicy string
 
 const (
@@ -100,11 +104,11 @@ func RunAnalyzer(analyzer Analyzer, context GraphContext) (AnalyzerResult, core.
 	context.ConfigurationHash = configHash
 	result, err := analyzer.Run(context)
 	finished := time.Now().UTC()
-	status := "completed"
+	status := core.StatusCompleted
 	if err != nil {
-		status = "analysis_error"
+		status = core.StatusAnalysisError
 	} else if len(result.Diagnostics) > 0 {
-		status = "partial"
+		status = core.StatusPartial
 	}
 	var diagnostics []string
 	for _, diagnostic := range result.Diagnostics {

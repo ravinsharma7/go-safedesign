@@ -25,12 +25,12 @@ func (Analyzer) Metadata() pipeline.AnalyzerMetadata {
 		ID:                    ID,
 		Version:               Version,
 		Stage:                 pipeline.StageModuleDependencyEnrichment,
-		InputFactKinds:        []string{"module", "depends_on", "diagnostic"},
+		InputFactKinds:        []string{core.NodeKindModule, core.EdgeKindDependsOn, core.FactKindDiagnostic},
 		MinimumRequiredTrust:  core.TrustSyntaxObserved,
 		MaximumEmittedTrust:   core.TrustSyntaxObserved,
-		EmittedFactKinds:      []string{"label", "warning"},
+		EmittedFactKinds:      []string{core.FactKindLabel, core.FactKindWarning},
 		ConfigurationSection:  "moduleDependencyEnrichment",
-		FailureMode:           "partial",
+		FailureMode:           pipeline.FailureModePartial,
 		IncompleteInputPolicy: pipeline.IncompleteInputAllow,
 	}
 }
@@ -66,7 +66,7 @@ func (Analyzer) evaluate(graph core.Graph, cfg Config) ([]core.Label, []core.War
 	var labels []core.Label
 	var warnings []core.Warning
 	for _, edge := range graph.Edges {
-		if edge.Kind != "depends_on" {
+		if edge.Kind != core.EdgeKindDependsOn {
 			continue
 		}
 		labels = append(labels, dependencyLabelFor(edge))
@@ -75,7 +75,7 @@ func (Analyzer) evaluate(graph core.Graph, cfg Config) ([]core.Label, []core.War
 		}
 	}
 	for _, diagnostic := range graph.Diagnostics {
-		if diagnostic.Status != "missing_dependency" {
+		if diagnostic.Status != core.DiagnosticStatusMissingDependency {
 			continue
 		}
 		warnings = append(warnings, missingDependencyWarningFor(diagnostic))
@@ -88,15 +88,15 @@ func (Analyzer) evaluate(graph core.Graph, cfg Config) ([]core.Label, []core.War
 func dependencyLabelFor(edge core.Edge) core.Label {
 	return core.Label{
 		ID:         "label:module.dependency:" + edge.ID,
-		Kind:       "label",
+		Kind:       core.FactKindLabel,
 		Name:       "module.dependency",
 		Value:      "direct",
 		TargetID:   edge.ID,
-		TargetKind: "edge",
-		Source:     "observed",
+		TargetKind: core.FactKindEdge,
+		Source:     core.ObservationSourceObserved,
 		Evidence:   []string{edge.ID},
 		TrustLevel: edge.TrustLevel,
-		Freshness:  "fresh",
+		Freshness:  core.FreshnessFresh,
 	}
 }
 
@@ -111,7 +111,7 @@ func missingDependencyWarningFor(diagnostic core.Diagnostic) core.Warning {
 		TrustLevel:          core.TrustSyntaxObserved,
 		SourceFile:          diagnostic.SourceFile,
 		LineRange:           diagnostic.LineRange,
-		Freshness:           "fresh",
+		Freshness:           core.FreshnessFresh,
 	}
 }
 
@@ -130,6 +130,6 @@ func outdatedWarningFor(edge core.Edge, cfg Config) core.Warning {
 		TrustLevel:          edge.TrustLevel,
 		SourceFile:          edge.SourceFile,
 		LineRange:           edge.LineRange,
-		Freshness:           "fresh",
+		Freshness:           core.FreshnessFresh,
 	}
 }

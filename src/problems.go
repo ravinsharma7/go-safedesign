@@ -32,7 +32,7 @@ func buildProblemsReport(graph core.Graph, limit int) problemsReport {
 
 	var policyResults []core.PolicyResult
 	for _, result := range graph.PolicyResults {
-		if result.Status != "pass" {
+		if result.Status != core.StatusPass {
 			policyResults = append(policyResults, result)
 		}
 	}
@@ -41,7 +41,7 @@ func buildProblemsReport(graph core.Graph, limit int) problemsReport {
 
 	var metrics []core.Metric
 	for _, metric := range graph.Metrics {
-		if metric.Status == "warning" {
+		if metric.Status == core.StatusWarning {
 			metrics = append(metrics, metric)
 		}
 	}
@@ -53,7 +53,7 @@ func buildProblemsReport(graph core.Graph, limit int) problemsReport {
 
 	var queries []core.QueryResult
 	for _, query := range graph.Queries {
-		if query.Status != "pass" {
+		if query.Status != core.StatusPass {
 			queries = append(queries, query)
 		}
 	}
@@ -62,7 +62,7 @@ func buildProblemsReport(graph core.Graph, limit int) problemsReport {
 
 	var runs []core.RunRecord
 	for _, run := range graph.Runs {
-		if run.Status != "completed" {
+		if run.Status != core.StatusCompleted {
 			runs = append(runs, run)
 		}
 	}

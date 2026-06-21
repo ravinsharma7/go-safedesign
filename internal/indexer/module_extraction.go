@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"go-safedesign/internal/core"
 	srcutil "go-safedesign/internal/source"
 
 	"golang.org/x/mod/modfile"
@@ -46,41 +47,43 @@ func (b *graphBuilder) indexModuleFile(path string) error {
 	dir := filepath.Dir(path)
 	info := moduleInfo{Path: mf.Module.Mod.Path, Dir: dir}
 	b.modules = append(b.modules, info)
-	id := "module:" + info.Path
+	id := core.ModuleID(info.Path)
 	b.addNode(Node{
 		ID:         id,
-		Kind:       "module",
+		Kind:       core.NodeKindModule,
 		Name:       info.Path,
 		TrustLevel: TrustSyntaxObserved,
-		Freshness:  "fresh",
+		Freshness:  core.FreshnessFresh,
 		SourceFile: b.rel(path),
 		SourceHash: srcutil.HashBytes(src),
 		ModulePath: info.Path,
 	})
 	for _, req := range mf.Require {
-		to := "module:" + req.Mod.Path
+		to := core.ModuleID(req.Mod.Path)
 		if !b.hasNode(to) {
+			placeholderID := core.PlaceholderModuleID(req.Mod.Path)
 			b.addNode(Node{
-				ID:         "placeholder:module:" + req.Mod.Path,
-				Kind:       "placeholder",
+				ID:         placeholderID,
+				Kind:       core.NodeKindPlaceholder,
 				Name:       req.Mod.Path,
 				TrustLevel: TrustSyntaxObserved,
 				Synthetic:  true,
-				Freshness:  "fresh",
+				Freshness:  core.FreshnessFresh,
 				Reason:     "module_required_but_not_discovered",
 				ModulePath: req.Mod.Path,
 			})
-			to = "placeholder:module:" + req.Mod.Path
+			to = placeholderID
 		}
+		incomplete := core.IsPlaceholderID(to)
 		b.addEdge(Edge{
-			ID:         "edge:depends_on:" + id + "->" + to,
+			ID:         core.EdgeID(core.EdgeKindDependsOn, id, to),
 			From:       id,
 			To:         to,
-			Kind:       "depends_on",
+			Kind:       core.EdgeKindDependsOn,
 			TrustLevel: TrustSyntaxObserved,
-			Complete:   !strings.HasPrefix(to, "placeholder:"),
-			Synthetic:  strings.HasPrefix(to, "placeholder:"),
-			Reason:     reasonIf(strings.HasPrefix(to, "placeholder:"), "required_module_not_present_in_workspace"),
+			Complete:   !incomplete,
+			Synthetic:  incomplete,
+			Reason:     reasonIf(incomplete, "required_module_not_present_in_workspace"),
 			SourceFile: b.rel(path),
 		})
 	}

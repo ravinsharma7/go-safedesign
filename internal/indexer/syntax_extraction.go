@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"go-safedesign/internal/core"
 	"go-safedesign/internal/pipeline"
 	srcutil "go-safedesign/internal/source"
 )
@@ -48,23 +49,24 @@ func (b *graphBuilder) indexGoFile(mod moduleInfo, path string) error {
 	}
 
 	pkgPath := packagePath(mod, filepath.Dir(path))
-	pkgID := "package:" + pkgPath
+	pkgID := core.PackageID(pkgPath)
 	sourceFile := b.rel(path)
-	fileID := "file:" + sourceFile
+	fileID := core.NodeKindFile + ":" + sourceFile
 	fileHash := srcutil.HashBytes(src)
 	b.syntaxSnapshots[sourceFile] = pipeline.SyntaxSnapshot{File: file, SourceHash: fileHash}
 
-	b.addNode(Node{ID: pkgID, Kind: "package", Name: pkgPath, TrustLevel: TrustSyntaxObserved, Freshness: "fresh", PackagePath: pkgPath, ModulePath: mod.Path})
-	b.addNode(Node{ID: fileID, Kind: "file", Name: filepath.Base(path), TrustLevel: TrustSyntaxObserved, Freshness: "fresh", SourceFile: sourceFile, SourceHash: fileHash, LineRange: fileLineRange(b.fset, file), PackagePath: pkgPath, ModulePath: mod.Path})
-	b.addEdge(Edge{ID: "edge:contains:" + pkgID + "->" + fileID, From: pkgID, To: fileID, Kind: "contains", TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: sourceFile})
+	b.addNode(Node{ID: pkgID, Kind: core.NodeKindPackage, Name: pkgPath, TrustLevel: TrustSyntaxObserved, Freshness: core.FreshnessFresh, PackagePath: pkgPath, ModulePath: mod.Path})
+	b.addNode(Node{ID: fileID, Kind: core.NodeKindFile, Name: filepath.Base(path), TrustLevel: TrustSyntaxObserved, Freshness: core.FreshnessFresh, SourceFile: sourceFile, SourceHash: fileHash, LineRange: fileLineRange(b.fset, file), PackagePath: pkgPath, ModulePath: mod.Path})
+	b.addEdge(Edge{ID: core.EdgeID(core.EdgeKindContains, pkgID, fileID), From: pkgID, To: fileID, Kind: core.EdgeKindContains, TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: sourceFile})
 
 	for _, imp := range file.Imports {
 		importPath, _ := strconv.Unquote(imp.Path.Value)
-		importID := "import:" + pkgPath + ":" + importPath
+		importID := core.NodeKindImport + ":" + pkgPath + ":" + importPath
 		targetID := b.importTargetID(importPath)
+		incomplete := core.IsPlaceholderID(targetID)
 		line := lineRange(b.fset, imp.Pos(), imp.End())
-		b.addNode(Node{ID: importID, Kind: "import", Name: importPath, TrustLevel: TrustSyntaxObserved, Freshness: "fresh", SourceFile: b.rel(path), SourceHash: fileHash, LineRange: line, PackagePath: pkgPath, ModulePath: mod.Path})
-		b.addEdge(Edge{ID: "edge:imports:" + pkgID + "->" + targetID, From: pkgID, To: targetID, Kind: "imports", TrustLevel: TrustSyntaxObserved, Synthetic: strings.HasPrefix(targetID, "placeholder:"), Complete: !strings.HasPrefix(targetID, "placeholder:"), Reason: reasonIf(strings.HasPrefix(targetID, "placeholder:"), "import_target_not_parsed_or_loaded"), SourceFile: b.rel(path), LineRange: line})
+		b.addNode(Node{ID: importID, Kind: core.NodeKindImport, Name: importPath, TrustLevel: TrustSyntaxObserved, Freshness: core.FreshnessFresh, SourceFile: b.rel(path), SourceHash: fileHash, LineRange: line, PackagePath: pkgPath, ModulePath: mod.Path})
+		b.addEdge(Edge{ID: core.EdgeID(core.EdgeKindImports, pkgID, targetID), From: pkgID, To: targetID, Kind: core.EdgeKindImports, TrustLevel: TrustSyntaxObserved, Synthetic: incomplete, Complete: !incomplete, Reason: reasonIf(incomplete, "import_target_not_parsed_or_loaded"), SourceFile: b.rel(path), LineRange: line})
 	}
 
 	ast.Inspect(file, func(n ast.Node) bool {
@@ -94,17 +96,17 @@ func (b *graphBuilder) indexGoFile(mod moduleInfo, path string) error {
 }
 
 func (b *graphBuilder) indexType(path, fileHash, pkgPath, modPath string, spec *ast.TypeSpec) {
-	kind := "type"
+	kind := core.NodeKindType
 	switch spec.Type.(type) {
 	case *ast.InterfaceType:
-		kind = "interface"
+		kind = core.NodeKindInterface
 	case *ast.StructType:
-		kind = "struct"
+		kind = core.NodeKindStruct
 	}
 	id := kind + ":" + pkgPath + "." + spec.Name.Name
 	line := lineRange(b.fset, spec.Pos(), spec.End())
-	b.addNode(Node{ID: id, Kind: kind, Name: spec.Name.Name, TrustLevel: TrustSyntaxObserved, Freshness: "fresh", SourceFile: b.rel(path), SourceHash: fileHash, LineRange: line, PackagePath: pkgPath, ModulePath: modPath})
-	b.addEdge(Edge{ID: "edge:declares:package:" + pkgPath + "->" + id, From: "package:" + pkgPath, To: id, Kind: "declares", TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: b.rel(path), LineRange: line})
+	b.addNode(Node{ID: id, Kind: kind, Name: spec.Name.Name, TrustLevel: TrustSyntaxObserved, Freshness: core.FreshnessFresh, SourceFile: b.rel(path), SourceHash: fileHash, LineRange: line, PackagePath: pkgPath, ModulePath: modPath})
+	b.addEdge(Edge{ID: core.EdgeID(core.EdgeKindDeclares, core.PackageID(pkgPath), id), From: core.PackageID(pkgPath), To: id, Kind: core.EdgeKindDeclares, TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: b.rel(path), LineRange: line})
 
 	structType, ok := spec.Type.(*ast.StructType)
 	if !ok || structType.Fields == nil {
@@ -113,29 +115,30 @@ func (b *graphBuilder) indexType(path, fileHash, pkgPath, modPath string, spec *
 	for _, field := range structType.Fields.List {
 		for _, name := range field.Names {
 			fieldLine := lineRange(b.fset, name.Pos(), name.End())
-			fieldID := "field:" + pkgPath + "." + spec.Name.Name + "." + name.Name
-			b.addNode(Node{ID: fieldID, Kind: "field", Name: name.Name, TrustLevel: TrustSyntaxObserved, Freshness: "fresh", SourceFile: b.rel(path), SourceHash: fileHash, LineRange: fieldLine, PackagePath: pkgPath, ModulePath: modPath})
-			b.addEdge(Edge{ID: "edge:contains:" + id + "->" + fieldID, From: id, To: fieldID, Kind: "contains", TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: b.rel(path), LineRange: fieldLine})
+			fieldID := core.NodeKindField + ":" + pkgPath + "." + spec.Name.Name + "." + name.Name
+			b.addNode(Node{ID: fieldID, Kind: core.NodeKindField, Name: name.Name, TrustLevel: TrustSyntaxObserved, Freshness: core.FreshnessFresh, SourceFile: b.rel(path), SourceHash: fileHash, LineRange: fieldLine, PackagePath: pkgPath, ModulePath: modPath})
+			b.addEdge(Edge{ID: core.EdgeID(core.EdgeKindContains, id, fieldID), From: id, To: fieldID, Kind: core.EdgeKindContains, TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: b.rel(path), LineRange: fieldLine})
 		}
 	}
 }
 
 func (b *graphBuilder) indexFunc(path, fileHash, pkgPath, modPath string, fn *ast.FuncDecl) {
-	id := "function:" + pkgPath + "." + fn.Name.Name
-	kind := "function"
+	id := core.NodeKindFunction + ":" + pkgPath + "." + fn.Name.Name
+	kind := core.NodeKindFunction
 	if fn.Recv != nil && len(fn.Recv.List) > 0 {
-		id = "method:" + pkgPath + "." + receiverName(fn.Recv.List[0].Type) + "." + fn.Name.Name
-		kind = "method"
+		id = core.NodeKindMethod + ":" + pkgPath + "." + receiverName(fn.Recv.List[0].Type) + "." + fn.Name.Name
+		kind = core.NodeKindMethod
 	}
-	b.addNode(Node{ID: id, Kind: kind, Name: fn.Name.Name, TrustLevel: TrustSyntaxObserved, Freshness: "fresh", SourceFile: b.rel(path), SourceHash: fileHash, LineRange: lineRange(b.fset, fn.Pos(), fn.End()), PackagePath: pkgPath, ModulePath: modPath})
-	b.addEdge(Edge{ID: "edge:declares:package:" + pkgPath + "->" + id, From: "package:" + pkgPath, To: id, Kind: "declares", TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: b.rel(path), LineRange: lineRange(b.fset, fn.Pos(), fn.End())})
+	b.addNode(Node{ID: id, Kind: kind, Name: fn.Name.Name, TrustLevel: TrustSyntaxObserved, Freshness: core.FreshnessFresh, SourceFile: b.rel(path), SourceHash: fileHash, LineRange: lineRange(b.fset, fn.Pos(), fn.End()), PackagePath: pkgPath, ModulePath: modPath})
+	b.addEdge(Edge{ID: core.EdgeID(core.EdgeKindDeclares, core.PackageID(pkgPath), id), From: core.PackageID(pkgPath), To: id, Kind: core.EdgeKindDeclares, TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: b.rel(path), LineRange: lineRange(b.fset, fn.Pos(), fn.End())})
 }
 
 func (b *graphBuilder) indexRuntimeMarker(path, fileHash, pkgPath, name string, start, end token.Pos) {
 	line := lineRange(b.fset, start, end)
-	id := "runtime_marker:" + b.rel(path) + ":" + line + ":" + name
-	b.addNode(Node{ID: id, Kind: "runtime_marker", Name: name, TrustLevel: TrustSyntaxObserved, Freshness: "fresh", SourceFile: b.rel(path), SourceHash: fileHash, LineRange: line, PackagePath: pkgPath})
-	b.addEdge(Edge{ID: "edge:contains_runtime_marker:file:" + b.rel(path) + "->" + id, From: "file:" + b.rel(path), To: id, Kind: "contains_runtime_marker", TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: b.rel(path), LineRange: line})
+	id := core.NodeKindRuntimeMarker + ":" + b.rel(path) + ":" + line + ":" + name
+	fileID := core.NodeKindFile + ":" + b.rel(path)
+	b.addNode(Node{ID: id, Kind: core.NodeKindRuntimeMarker, Name: name, TrustLevel: TrustSyntaxObserved, Freshness: core.FreshnessFresh, SourceFile: b.rel(path), SourceHash: fileHash, LineRange: line, PackagePath: pkgPath})
+	b.addEdge(Edge{ID: core.EdgeID(core.EdgeKindContainsRuntimeMarker, fileID, id), From: fileID, To: id, Kind: core.EdgeKindContainsRuntimeMarker, TrustLevel: TrustSyntaxObserved, Complete: true, SourceFile: b.rel(path), LineRange: line})
 }
 
 func (b *graphBuilder) indexCall(path, pkgPath string, call *ast.CallExpr) {
@@ -144,25 +147,27 @@ func (b *graphBuilder) indexCall(path, pkgPath string, call *ast.CallExpr) {
 		return
 	}
 	line := lineRange(b.fset, call.Pos(), call.End())
-	id := "unresolved_call:" + b.rel(path) + ":" + line + ":" + name
-	b.addNode(Node{ID: id, Kind: "unresolved_call", Name: name, TrustLevel: TrustSyntaxObserved, Synthetic: true, Freshness: "fresh", Reason: "call_target_not_type_resolved", SourceFile: b.rel(path), LineRange: line, PackagePath: pkgPath})
-	b.addEdge(Edge{ID: "edge:calls:package:" + pkgPath + "->" + id, From: "package:" + pkgPath, To: id, Kind: "calls", TrustLevel: TrustSyntaxObserved, Synthetic: true, Complete: false, Reason: "target_symbol_not_type_resolved", SourceFile: b.rel(path), LineRange: line})
+	id := core.NodeKindUnresolvedCall + ":" + b.rel(path) + ":" + line + ":" + name
+	b.addNode(Node{ID: id, Kind: core.NodeKindUnresolvedCall, Name: name, TrustLevel: TrustSyntaxObserved, Synthetic: true, Freshness: core.FreshnessFresh, Reason: "call_target_not_type_resolved", SourceFile: b.rel(path), LineRange: line, PackagePath: pkgPath})
+	b.addEdge(Edge{ID: core.EdgeID(core.EdgeKindCalls, core.PackageID(pkgPath), id), From: core.PackageID(pkgPath), To: id, Kind: core.EdgeKindCalls, TrustLevel: TrustSyntaxObserved, Synthetic: true, Complete: false, Reason: "target_symbol_not_type_resolved", SourceFile: b.rel(path), LineRange: line})
 }
 
 func (b *graphBuilder) importTargetID(importPath string) string {
 	if isStdlibImport(importPath) {
-		return "package:" + importPath
+		return core.PackageID(importPath)
 	}
 	for _, mod := range b.modules {
 		if importPath == mod.Path || strings.HasPrefix(importPath, mod.Path+"/") {
-			id := "package:" + importPath
+			id := core.PackageID(importPath)
 			if !b.hasNode(id) {
-				b.addNode(Node{ID: "placeholder:package:" + importPath, Kind: "placeholder", Name: importPath, TrustLevel: TrustSyntaxObserved, Synthetic: true, Freshness: "fresh", Reason: "package_imported_but_no_go_files_discovered", PackagePath: importPath, ModulePath: mod.Path})
-				return "placeholder:package:" + importPath
+				placeholderID := core.PlaceholderPackageID(importPath)
+				b.addNode(Node{ID: placeholderID, Kind: core.NodeKindPlaceholder, Name: importPath, TrustLevel: TrustSyntaxObserved, Synthetic: true, Freshness: core.FreshnessFresh, Reason: "package_imported_but_no_go_files_discovered", PackagePath: importPath, ModulePath: mod.Path})
+				return placeholderID
 			}
 			return id
 		}
 	}
-	b.addNode(Node{ID: "placeholder:package:" + importPath, Kind: "placeholder", Name: importPath, TrustLevel: TrustSyntaxObserved, Synthetic: true, Freshness: "fresh", Reason: "imported_package_outside_known_workspace", PackagePath: importPath})
-	return "placeholder:package:" + importPath
+	placeholderID := core.PlaceholderPackageID(importPath)
+	b.addNode(Node{ID: placeholderID, Kind: core.NodeKindPlaceholder, Name: importPath, TrustLevel: TrustSyntaxObserved, Synthetic: true, Freshness: core.FreshnessFresh, Reason: "imported_package_outside_known_workspace", PackagePath: importPath})
+	return placeholderID
 }

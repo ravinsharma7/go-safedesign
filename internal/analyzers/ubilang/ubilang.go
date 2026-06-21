@@ -46,12 +46,12 @@ func (Analyzer) Metadata() pipeline.AnalyzerMetadata {
 		ID:                   ID,
 		Version:              Version,
 		Stage:                pipeline.StageDDDClassification,
-		InputFactKinds:       []string{"module", "package", "function", "method", "type", "interface", "struct", "field"},
+		InputFactKinds:       []string{core.NodeKindModule, core.NodeKindPackage, core.NodeKindFunction, core.NodeKindMethod, core.NodeKindType, core.NodeKindInterface, core.NodeKindStruct, core.NodeKindField},
 		MinimumRequiredTrust: core.TrustSyntaxObserved,
 		MaximumEmittedTrust:  core.TrustTypeResolved,
-		EmittedFactKinds:     []string{"label", "metric", "warning"},
+		EmittedFactKinds:     []string{core.FactKindLabel, core.FactKindMetric, core.FactKindWarning},
 		ConfigurationSection: "ubiquitousLanguage",
-		FailureMode:          "partial",
+		FailureMode:          pipeline.FailureModePartial,
 	}
 }
 
@@ -160,7 +160,7 @@ func normalizeContexts(configs []ContextConfig) []normalizedContext {
 func packageNodes(graph core.Graph) []core.Node {
 	var nodes []core.Node
 	for _, node := range graph.Nodes {
-		if node.Kind == "package" && node.PackagePath != "" {
+		if node.Kind == core.NodeKindPackage && node.PackagePath != "" {
 			nodes = append(nodes, node)
 		}
 	}
@@ -172,7 +172,7 @@ func scopedIdentityNodes(graph core.Graph) map[string][]core.Node {
 	out := map[string][]core.Node{}
 	for _, node := range graph.Nodes {
 		switch node.Kind {
-		case "module", "function", "method", "type", "interface", "struct", "field":
+		case core.NodeKindModule, core.NodeKindFunction, core.NodeKindMethod, core.NodeKindType, core.NodeKindInterface, core.NodeKindStruct, core.NodeKindField:
 		default:
 			continue
 		}
@@ -204,7 +204,7 @@ func contextForPackage(pkgPath string, contexts []normalizedContext) (normalized
 }
 
 func wordsFromNode(node core.Node) []string {
-	if node.Kind == "package" {
+	if node.Kind == core.NodeKindPackage {
 		return SplitWords(node.PackagePath)
 	}
 	return SplitWords(node.Name)
@@ -225,30 +225,30 @@ func canonicalTerm(raw string, ctx normalizedContext) string {
 func contextLabelFor(pkg core.Node, ctx normalizedContext) core.Label {
 	return core.Label{
 		ID:         "label:ddd.context:" + pkg.ID,
-		Kind:       "label",
+		Kind:       core.FactKindLabel,
 		Name:       "ddd.context",
 		Value:      ctx.ID,
 		TargetID:   pkg.ID,
 		TargetKind: "node",
-		Source:     "configured",
+		Source:     core.ObservationSourceConfigured,
 		Evidence:   []string{pkg.ID},
 		TrustLevel: pkg.TrustLevel,
-		Freshness:  "fresh",
+		Freshness:  core.FreshnessFresh,
 	}
 }
 
 func termLabelFor(pkg core.Node, term string, ctx normalizedContext) core.Label {
 	return core.Label{
 		ID:         "label:ul.term:" + pkg.ID + ":" + term,
-		Kind:       "label",
+		Kind:       core.FactKindLabel,
 		Name:       "ul.term",
 		Value:      term,
 		TargetID:   pkg.ID,
 		TargetKind: "node",
-		Source:     "observed",
+		Source:     core.ObservationSourceObserved,
 		Evidence:   []string{pkg.ID, "context:" + ctx.ID},
 		TrustLevel: pkg.TrustLevel,
-		Freshness:  "fresh",
+		Freshness:  core.FreshnessFresh,
 	}
 }
 
@@ -259,7 +259,7 @@ func alignmentMetricFor(pkg core.Node, recognized, considered int, configHash st
 	}
 	return core.Metric{
 		ID:                "metric:" + AlignmentMetricName + ":" + pkg.ID,
-		Kind:              "metric",
+		Kind:              core.FactKindMetric,
 		Name:              AlignmentMetricName,
 		Value:             value,
 		Unit:              MetricUnit,
@@ -267,7 +267,7 @@ func alignmentMetricFor(pkg core.Node, recognized, considered int, configHash st
 		Subject:           pkg.ID,
 		AnalyzerID:        ID,
 		Stage:             string(pipeline.StageDDDClassification),
-		Status:            "pass",
+		Status:            core.StatusPass,
 		Reason:            "ubiquitous language alignment",
 		Evidence:          []string{pkg.ID},
 		TrustLevel:        pkg.TrustLevel,
@@ -288,7 +288,7 @@ func termWarningFor(kind string, pkg core.Node, term, evidenceID, reason string)
 		TrustLevel:          pkg.TrustLevel,
 		SourceFile:          pkg.SourceFile,
 		LineRange:           pkg.LineRange,
-		Freshness:           "fresh",
+		Freshness:           core.FreshnessFresh,
 	}
 }
 

@@ -1,24 +1,27 @@
 package indexer
 
-import "strings"
+import (
+	"strings"
+
+	"go-safedesign/internal/core"
+)
 
 func (b *graphBuilder) reconcilePlaceholders() {
 	for id, edge := range b.edges {
-		const prefix = "placeholder:package:"
-		if edge.Kind != "imports" || !strings.HasPrefix(edge.To, prefix) {
+		if edge.Kind != core.EdgeKindImports || !strings.HasPrefix(edge.To, core.IDPrefixPlaceholderPackage) {
 			continue
 		}
-		realID := "package:" + strings.TrimPrefix(edge.To, prefix)
+		realID := core.PackageID(strings.TrimPrefix(edge.To, core.IDPrefixPlaceholderPackage))
 		if !b.hasNode(realID) {
 			continue
 		}
 		edge.To = realID
-		edge.ID = "edge:imports:" + edge.From + "->" + realID
+		edge.ID = core.EdgeID(core.EdgeKindImports, edge.From, realID)
 		edge.Synthetic = false
 		edge.Complete = true
 		edge.Reason = "placeholder_reconciled_to_real_package"
 		delete(b.edges, id)
 		b.edges[edge.ID] = edge
-		delete(b.nodes, "placeholder:"+realID)
+		delete(b.nodes, core.IDPrefixPlaceholder+realID)
 	}
 }

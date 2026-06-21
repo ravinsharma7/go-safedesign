@@ -67,7 +67,7 @@ func (b *graphBuilder) sourceRecord(kind, path, reason string) core.SourceRecord
 		Path:       rel,
 		AbsPath:    filepath.Clean(abs),
 		SourceHash: hash,
-		Freshness:  "fresh",
+		Freshness:  core.FreshnessFresh,
 		Reason:     reason,
 		TrustLevel: core.TrustSyntaxObserved,
 	}
@@ -80,7 +80,7 @@ func (b *graphBuilder) addSourceRecord(record core.SourceRecord) {
 		FactID:       record.ID,
 		SourceFile:   record.Path,
 		NewHash:      record.SourceHash,
-		Status:       "fresh",
+		Status:       core.FreshnessFresh,
 		Reason:       "source_discovered",
 		Extractor:    core.ExtractorVersion,
 		FactMetadata: record.FactMetadata,

@@ -23,10 +23,10 @@ func (b *graphBuilder) loadPackages() {
 		return
 	}
 	for _, pkg := range pkgs {
-		id := "package:" + pkg.PkgPath
+		id := core.PackageID(pkg.PkgPath)
 		n := b.nodes[id]
 		if n.ID == "" {
-			n = Node{ID: id, Kind: "package", Name: pkg.PkgPath, Freshness: "fresh", PackagePath: pkg.PkgPath}
+			n = Node{ID: id, Kind: core.NodeKindPackage, Name: pkg.PkgPath, Freshness: core.FreshnessFresh, PackagePath: pkg.PkgPath}
 		}
 		if len(pkg.Errors) == 0 {
 			n.TrustLevel = TrustTypeResolved
@@ -42,7 +42,7 @@ func (b *graphBuilder) loadPackages() {
 			if imported == nil {
 				continue
 			}
-			target := "package:" + importPath
+			target := core.PackageID(importPath)
 			n := b.nodes[target]
 			if n.ID == "" {
 				continue
@@ -66,7 +66,7 @@ func packageLoadingDiagnostic(source, reason string) Diagnostic {
 		AnalyzerID: "indexer." + string(pipeline.StagePackageLoading),
 		Status:     classifyPackageLoadingDiagnostic(reason),
 	}
-	if diagnostic.Status == "import_cycle" {
+	if diagnostic.Status == core.DiagnosticStatusImportCycle {
 		diagnostic.Level = "error"
 	}
 	return diagnostic
@@ -76,14 +76,14 @@ func classifyPackageLoadingDiagnostic(reason string) string {
 	lower := strings.ToLower(reason)
 	switch {
 	case strings.Contains(lower, "import cycle"):
-		return "import_cycle"
+		return core.DiagnosticStatusImportCycle
 	case strings.Contains(lower, "no required module provides package"),
 		strings.Contains(lower, "cannot find module providing package"),
 		strings.Contains(lower, "module found, but does not contain package"),
 		strings.Contains(lower, "missing go.sum entry"):
-		return "missing_dependency"
+		return core.DiagnosticStatusMissingDependency
 	default:
-		return "package_loading_diagnostic"
+		return core.DiagnosticStatusPackageLoadingDiagnostic
 	}
 }
 

@@ -35,12 +35,12 @@ func (Analyzer) Metadata() pipeline.AnalyzerMetadata {
 		ID:                    ID,
 		Version:               Version,
 		Stage:                 pipeline.StagePolicyEvaluation,
-		InputFactKinds:        []string{"package", "imports"},
+		InputFactKinds:        []string{core.NodeKindPackage, core.EdgeKindImports},
 		MinimumRequiredTrust:  core.TrustSyntaxObserved,
 		MaximumEmittedTrust:   core.TrustSyntaxObserved,
-		EmittedFactKinds:      []string{"policy_result", "warning", "edge", "diagnostic"},
+		EmittedFactKinds:      []string{core.FactKindPolicyResult, core.FactKindWarning, core.FactKindEdge, core.FactKindDiagnostic},
 		ConfigurationSection:  "packageImportPolicy",
-		FailureMode:           "partial",
+		FailureMode:           pipeline.FailureModePartial,
 		IncompleteInputPolicy: pipeline.IncompleteInputAllow,
 	}
 }
@@ -80,26 +80,26 @@ func (Analyzer) evaluate(graph core.Graph, policy PackageImportPolicy, configHas
 	var edges []core.Edge
 	for _, edge := range graph.Edges {
 		switch edge.Kind {
-		case "imports":
+		case core.EdgeKindImports:
 			result, ok := packageImportResult(edge, packageRules, configHash)
 			if !ok {
 				continue
 			}
 			results = append(results, result)
-			if result.Status != "pass" {
+			if result.Status != core.StatusPass {
 				diagnostics = append(diagnostics, diagnosticFor(result, edge.ID))
 				warnings = append(warnings, warningFor(result, edge.ID))
 			}
 			if violation, ok := violationEdgeFor(result, edge); ok {
 				edges = append(edges, violation)
 			}
-		case "depends_on":
+		case core.EdgeKindDependsOn:
 			result, ok := moduleDependencyResult(edge, moduleRules, configHash)
 			if !ok {
 				continue
 			}
 			results = append(results, result)
-			if result.Status != "pass" {
+			if result.Status != core.StatusPass {
 				diagnostics = append(diagnostics, diagnosticFor(result, edge.ID))
 				warnings = append(warnings, warningFor(result, edge.ID))
 			}
@@ -114,7 +114,7 @@ func (Analyzer) evaluate(graph core.Graph, policy PackageImportPolicy, configHas
 			continue
 		}
 		results = append(results, result)
-		if result.Status != "pass" {
+		if result.Status != core.StatusPass {
 			diagnostics = append(diagnostics, diagnosticFor(result, ""))
 			warnings = append(warnings, warningFor(result, ""))
 		}
@@ -153,7 +153,7 @@ func normalizedRule(rule Rule) Rule {
 }
 
 func packageImportResult(edge core.Edge, rules map[string]Rule, configHash string) (core.PolicyResult, bool) {
-	fromPkg, ok := strings.CutPrefix(edge.From, "package:")
+	fromPkg, ok := strings.CutPrefix(edge.From, core.IDPrefixPackage)
 	if !ok {
 		return core.PolicyResult{}, false
 	}
@@ -169,25 +169,25 @@ func packageImportResult(edge core.Edge, rules map[string]Rule, configHash strin
 	result.SourceFile = edge.SourceFile
 	result.LineRange = edge.LineRange
 	switch {
-	case !edge.Complete || edge.Synthetic || strings.HasPrefix(edge.To, "placeholder:"):
-		result.Status = "unknown"
+	case core.IsIncompleteEdge(edge):
+		result.Status = core.StatusUnknown
 		result.Reason = "import target incomplete for " + targetPkg
 	case contains(rule.Deny, targetPkg):
-		result.Status = "fail"
+		result.Status = core.StatusFail
 		result.Reason = fromPkg + " imports denied package " + targetPkg
 	case len(rule.Allow) > 0 && !contains(rule.Allow, targetPkg):
-		result.Status = "fail"
+		result.Status = core.StatusFail
 		result.Reason = fromPkg + " imports package outside allow list " + targetPkg
 	default:
-		result.Status = "pass"
+		result.Status = core.StatusPass
 		result.Reason = fromPkg + " import allowed for " + targetPkg
 	}
-	result.ID = "policy_result:" + rule.ID + ":" + edge.ID
+	result.ID = core.FactKindPolicyResult + ":" + rule.ID + ":" + edge.ID
 	return result, true
 }
 
 func moduleDependencyResult(edge core.Edge, rules map[string]Rule, configHash string) (core.PolicyResult, bool) {
-	fromModule, ok := strings.CutPrefix(edge.From, "module:")
+	fromModule, ok := strings.CutPrefix(edge.From, core.IDPrefixModule)
 	if !ok {
 		return core.PolicyResult{}, false
 	}
@@ -203,39 +203,39 @@ func moduleDependencyResult(edge core.Edge, rules map[string]Rule, configHash st
 	result.SourceFile = edge.SourceFile
 	result.LineRange = edge.LineRange
 	switch {
-	case !edge.Complete || edge.Synthetic || strings.HasPrefix(edge.To, "placeholder:"):
-		result.Status = "unknown"
+	case core.IsIncompleteEdge(edge):
+		result.Status = core.StatusUnknown
 		result.Reason = "module dependency target incomplete for " + targetModule
 	case contains(rule.DenyModules, targetModule):
-		result.Status = "fail"
+		result.Status = core.StatusFail
 		result.Reason = fromModule + " depends on denied module " + targetModule
 	case len(rule.AllowModules) > 0 && !contains(rule.AllowModules, targetModule):
-		result.Status = "fail"
+		result.Status = core.StatusFail
 		result.Reason = fromModule + " depends on module outside allow list " + targetModule
 	default:
-		result.Status = "pass"
+		result.Status = core.StatusPass
 		result.Reason = fromModule + " module dependency allowed for " + targetModule
 	}
-	result.ID = "policy_result:" + rule.ID + ":" + edge.ID
+	result.ID = core.FactKindPolicyResult + ":" + rule.ID + ":" + edge.ID
 	return result, true
 }
 
 func packageLoadingPolicyResult(diagnostic core.Diagnostic, configHash string) (core.PolicyResult, bool) {
 	switch diagnostic.Status {
-	case "missing_dependency", "import_cycle":
+	case core.DiagnosticStatusMissingDependency, core.DiagnosticStatusImportCycle:
 	default:
 		return core.PolicyResult{}, false
 	}
-	status := "unknown"
+	status := core.StatusUnknown
 	reason := "missing dependency: " + diagnostic.Reason
-	if diagnostic.Status == "import_cycle" {
-		status = "fail"
+	if diagnostic.Status == core.DiagnosticStatusImportCycle {
+		status = core.StatusFail
 		reason = "import cycle detected: " + diagnostic.Reason
 	}
 	scope := strings.TrimPrefix(diagnostic.Source, "go/packages:")
 	evidence := diagnostic.Source + ":" + diagnostic.Reason
 	result := basePolicyResult("package_loading:"+diagnostic.Status, scope, diagnostic.Source, []string{evidence}, core.TrustSyntaxObserved, configHash)
-	result.ID = "policy_result:package_loading:" + diagnostic.Status + ":" + core.HashBytes([]byte(evidence))
+	result.ID = core.FactKindPolicyResult + ":package_loading:" + diagnostic.Status + ":" + core.HashBytes([]byte(evidence))
 	result.Status = status
 	result.Reason = reason
 	result.SourceFile = diagnostic.SourceFile
@@ -245,7 +245,7 @@ func packageLoadingPolicyResult(diagnostic core.Diagnostic, configHash string) (
 
 func basePolicyResult(ruleID, scope, subject string, evidence []string, trust core.TrustLevel, configHash string) core.PolicyResult {
 	return core.PolicyResult{
-		Kind:              "policy_result",
+		Kind:              core.FactKindPolicyResult,
 		RuleID:            ruleID,
 		AnalyzerID:        ID,
 		Stage:             string(pipeline.StagePolicyEvaluation),
@@ -270,8 +270,8 @@ func diagnosticFor(result core.PolicyResult, edgeID string) core.Diagnostic {
 		TrustLevel:     result.TrustLevel,
 	}
 	switch result.Status {
-	case "unknown":
-		diagnostic.Level = "warning"
+	case core.StatusUnknown:
+		diagnostic.Level = core.StatusWarning
 		diagnostic.Reason = "policy_unknown: " + result.Reason
 	default:
 		diagnostic.Level = "error"
@@ -283,7 +283,7 @@ func diagnosticFor(result core.PolicyResult, edgeID string) core.Diagnostic {
 func warningFor(result core.PolicyResult, edgeID string) core.Warning {
 	reasonPrefix := "policy_violation: "
 	action := "Update the code dependency or adjust the configured policy rule."
-	if result.Status == "unknown" {
+	if result.Status == core.StatusUnknown {
 		reasonPrefix = "policy_unknown: "
 		action = "Resolve incomplete analysis evidence before treating this policy result as pass or fail."
 	}
@@ -292,7 +292,7 @@ func warningFor(result core.PolicyResult, edgeID string) core.Warning {
 		evidence = append(evidence, edgeID)
 	}
 	return core.Warning{
-		ID:                  "warning:" + result.ID,
+		ID:                  core.FactKindWarning + ":" + result.ID,
 		Kind:                "policy_warning",
 		Reason:              reasonPrefix + result.Reason,
 		SuggestedNextAction: action,
@@ -301,12 +301,12 @@ func warningFor(result core.PolicyResult, edgeID string) core.Warning {
 		TrustLevel:          result.TrustLevel,
 		SourceFile:          result.SourceFile,
 		LineRange:           result.LineRange,
-		Freshness:           "fresh",
+		Freshness:           core.FreshnessFresh,
 	}
 }
 
 func violationEdgeFor(result core.PolicyResult, evaluated core.Edge) (core.Edge, bool) {
-	if result.Status != "fail" || evaluated.ID == "" {
+	if result.Status != core.StatusFail || evaluated.ID == "" {
 		return core.Edge{}, false
 	}
 	from := policyScopeNodeID(result, evaluated)
@@ -314,10 +314,10 @@ func violationEdgeFor(result core.PolicyResult, evaluated core.Edge) (core.Edge,
 		return core.Edge{}, false
 	}
 	return core.Edge{
-		ID:         "edge:violates:" + result.ID,
+		ID:         core.IDPrefixEdge + core.EdgeKindViolates + ":" + result.ID,
 		From:       from,
 		To:         evaluated.To,
-		Kind:       "violates",
+		Kind:       core.EdgeKindViolates,
 		TrustLevel: result.TrustLevel,
 		Complete:   evaluated.Complete,
 		Reason:     result.Reason,
@@ -327,17 +327,17 @@ func violationEdgeFor(result core.PolicyResult, evaluated core.Edge) (core.Edge,
 }
 
 func policyScopeNodeID(result core.PolicyResult, evaluated core.Edge) string {
-	if strings.HasPrefix(evaluated.From, "package:") || strings.HasPrefix(evaluated.From, "module:") {
+	if strings.HasPrefix(evaluated.From, core.IDPrefixPackage) || strings.HasPrefix(evaluated.From, core.IDPrefixModule) {
 		return evaluated.From
 	}
 	if strings.HasPrefix(result.RuleID, "module_dependency:") {
-		return "module:" + result.Scope
+		return core.ModuleID(result.Scope)
 	}
-	return "package:" + result.Scope
+	return core.PackageID(result.Scope)
 }
 
 func packageFromImportTarget(id string) string {
-	for _, prefix := range []string{"package:", "placeholder:package:"} {
+	for _, prefix := range []string{core.IDPrefixPackage, core.IDPrefixPlaceholderPackage} {
 		if value, ok := strings.CutPrefix(id, prefix); ok {
 			return value
 		}
@@ -346,7 +346,7 @@ func packageFromImportTarget(id string) string {
 }
 
 func moduleFromDependencyTarget(id string) string {
-	for _, prefix := range []string{"module:", "placeholder:module:"} {
+	for _, prefix := range []string{core.IDPrefixModule, core.IDPrefixPlaceholderModule} {
 		if value, ok := strings.CutPrefix(id, prefix); ok {
 			return value
 		}

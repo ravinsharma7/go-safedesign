@@ -23,7 +23,7 @@ func ValidateAnalyzerResult(graph core.Graph, metadata AnalyzerMetadata, result 
 			Reason:     reason,
 			Stage:      string(metadata.Stage),
 			AnalyzerID: metadata.ID,
-			Status:     "analysis_error",
+			Status:     core.StatusAnalysisError,
 			TrustLevel: metadata.MaximumEmittedTrust,
 		})
 	}
@@ -42,19 +42,19 @@ func ValidateAnalyzerResult(graph core.Graph, metadata AnalyzerMetadata, result 
 		}
 	}
 	for _, observation := range result.Observations {
-		validateCommon(add, metadata, known, "observation", observation.ID, observation.Kind, observation.TrustLevel, observation.Evidence)
+		validateCommon(add, metadata, known, core.FactKindObservation, observation.ID, observation.Kind, observation.TrustLevel, observation.Evidence)
 		if observation.Name == "" {
-			add("observation " + observation.ID + " missing name")
+			add(core.FactKindObservation + " " + observation.ID + " missing name")
 		}
-		validateTarget(add, known, "observation", observation.ID, observation.TargetID, observation.TargetKind)
+		validateTarget(add, known, core.FactKindObservation, observation.ID, observation.TargetID, observation.TargetKind)
 		validateObservationSource(add, observation)
 	}
 	for _, label := range result.Labels {
-		validateCommon(add, metadata, known, "label", label.ID, label.Kind, label.TrustLevel, label.Evidence)
-		validateTarget(add, known, "label", label.ID, label.TargetID, label.TargetKind)
+		validateCommon(add, metadata, known, core.FactKindLabel, label.ID, label.Kind, label.TrustLevel, label.Evidence)
+		validateTarget(add, known, core.FactKindLabel, label.ID, label.TargetID, label.TargetKind)
 	}
 	for _, warning := range result.Warnings {
-		validateCommon(add, metadata, known, "warning", warning.ID, warning.Kind, warning.TrustLevel, warning.Evidence)
+		validateCommon(add, metadata, known, core.FactKindWarning, warning.ID, warning.Kind, warning.TrustLevel, warning.Evidence)
 		if warning.AffectedNodeID != "" && !known[warning.AffectedNodeID] {
 			add("warning " + warning.ID + " references missing affected node " + warning.AffectedNodeID)
 		}
@@ -63,7 +63,7 @@ func ValidateAnalyzerResult(graph core.Graph, metadata AnalyzerMetadata, result 
 		}
 	}
 	for _, metric := range result.Metrics {
-		validateCommon(add, metadata, known, "metric", metric.ID, metric.Kind, metric.TrustLevel, metric.Evidence)
+		validateCommon(add, metadata, known, core.FactKindMetric, metric.ID, metric.Kind, metric.TrustLevel, metric.Evidence)
 		if metric.Subject == "" {
 			add("metric " + metric.ID + " missing subject")
 		} else if looksLikeFactID(metric.Subject) && !known[metric.Subject] {
@@ -71,10 +71,10 @@ func ValidateAnalyzerResult(graph core.Graph, metadata AnalyzerMetadata, result 
 		}
 	}
 	for _, policy := range result.PolicyResults {
-		validateCommon(add, metadata, known, "policy_result", policy.ID, policy.Kind, policy.TrustLevel, policy.Evidence)
+		validateCommon(add, metadata, known, core.FactKindPolicyResult, policy.ID, policy.Kind, policy.TrustLevel, policy.Evidence)
 	}
 	for _, edge := range result.Edges {
-		validateCommon(add, metadata, known, "edge", edge.ID, edge.Kind, edge.TrustLevel, nil)
+		validateCommon(add, metadata, known, core.FactKindEdge, edge.ID, edge.Kind, edge.TrustLevel, nil)
 		if edge.From == "" || edge.To == "" {
 			add("edge " + edge.ID + " missing endpoints")
 			continue
@@ -117,15 +117,15 @@ func validateTarget(add func(string), known map[string]bool, factType, id, targe
 		add(factType + " " + id + " references missing target " + targetID)
 		return
 	}
-	if targetKind != "" && targetKind != "node" && targetKind != "edge" && targetKind != "policy_result" && targetKind != "metric" && targetKind != "observation" {
+	if targetKind != "" && targetKind != "node" && targetKind != core.FactKindEdge && targetKind != core.FactKindPolicyResult && targetKind != core.FactKindMetric && targetKind != core.FactKindObservation {
 		add(factType + " " + id + " has unsupported target kind " + targetKind)
 	}
 }
 
 func validateObservationSource(add func(string), observation core.Observation) {
-	switch observation.Source {
-	case "observed", "configured", "inferred", "imported":
-	case "":
+	switch {
+	case core.IsObservationSource(observation.Source):
+	case observation.Source == "":
 		add("observation " + observation.ID + " missing source")
 	default:
 		add("observation " + observation.ID + " has unsupported source " + observation.Source)
@@ -135,25 +135,25 @@ func validateObservationSource(add func(string), observation core.Observation) {
 func emittedFactKinds(result AnalyzerResult) map[string]bool {
 	out := map[string]bool{}
 	if len(result.Diagnostics) > 0 {
-		out["diagnostic"] = true
+		out[core.FactKindDiagnostic] = true
 	}
 	if len(result.PolicyResults) > 0 {
-		out["policy_result"] = true
+		out[core.FactKindPolicyResult] = true
 	}
 	if len(result.Metrics) > 0 {
-		out["metric"] = true
+		out[core.FactKindMetric] = true
 	}
 	if len(result.Observations) > 0 {
-		out["observation"] = true
+		out[core.FactKindObservation] = true
 	}
 	if len(result.Labels) > 0 {
-		out["label"] = true
+		out[core.FactKindLabel] = true
 	}
 	if len(result.Warnings) > 0 {
-		out["warning"] = true
+		out[core.FactKindWarning] = true
 	}
 	if len(result.Edges) > 0 {
-		out["edge"] = true
+		out[core.FactKindEdge] = true
 	}
 	return out
 }
@@ -223,8 +223,8 @@ func knownFactIDs(graph core.Graph, result AnalyzerResult) map[string]bool {
 
 func looksLikeFactID(value string) bool {
 	prefixes := []string{
-		"module:",
-		"package:",
+		core.IDPrefixModule,
+		core.IDPrefixPackage,
 		"file:",
 		"function:",
 		"method:",
@@ -235,13 +235,13 @@ func looksLikeFactID(value string) bool {
 		"import:",
 		"runtime_marker:",
 		"unresolved_call:",
-		"placeholder:",
-		"edge:",
-		"label:",
-		"warning:",
-		"metric:",
-		"policy_result:",
-		"observation:",
+		core.IDPrefixPlaceholder,
+		core.IDPrefixEdge,
+		core.FactKindLabel + ":",
+		core.FactKindWarning + ":",
+		core.FactKindMetric + ":",
+		core.FactKindPolicyResult + ":",
+		core.IDPrefixObservation,
 		"query:",
 		"path:",
 		"source_record:",

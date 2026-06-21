@@ -104,12 +104,12 @@ func (Analyzer) Metadata() pipeline.AnalyzerMetadata {
 		ID:                   ID,
 		Version:              Version,
 		Stage:                pipeline.StageComplexityMetrics,
-		InputFactKinds:       []string{"function", "method"},
+		InputFactKinds:       []string{core.NodeKindFunction, core.NodeKindMethod},
 		MinimumRequiredTrust: core.TrustSyntaxObserved,
 		MaximumEmittedTrust:  core.TrustSyntaxObserved,
-		EmittedFactKinds:     []string{"metric", "diagnostic"},
+		EmittedFactKinds:     []string{core.FactKindMetric, core.FactKindDiagnostic},
 		ConfigurationSection: "complexity",
-		FailureMode:          "partial",
+		FailureMode:          pipeline.FailureModePartial,
 	}
 }
 
@@ -198,7 +198,7 @@ func (Analyzer) evaluate(graph core.Graph, snapshots map[string]pipeline.SyntaxS
 			cyclomatic := cyclomaticComplexity(decisions)
 			cyclomaticMetric := cyclomaticMetricFor(node, cyclomatic, rules.WarningThreshold, configHash)
 			metrics = append(metrics, cyclomaticMetric, decisionCountMetricFor(node, decisions, configHash), runtimeMarkerCountMetricFor(node, runtimeMarkerCount(fn), configHash))
-			if cyclomaticMetric.Status == "warning" {
+			if cyclomaticMetric.Status == core.StatusWarning {
 				diagnostics = append(diagnostics, diagnosticFor(cyclomaticMetric))
 			}
 		}
@@ -217,7 +217,7 @@ func (Analyzer) evaluate(graph core.Graph, snapshots map[string]pipeline.SyntaxS
 func functionNodes(graph core.Graph) []core.Node {
 	var nodes []core.Node
 	for _, node := range graph.Nodes {
-		if (node.Kind == "function" || node.Kind == "method") && node.PackagePath != "" {
+		if (node.Kind == core.NodeKindFunction || node.Kind == core.NodeKindMethod) && node.PackagePath != "" {
 			nodes = append(nodes, node)
 		}
 	}
@@ -309,15 +309,15 @@ func runtimeMarkerCount(fn *ast.FuncDecl) int {
 }
 
 func cyclomaticMetricFor(node core.Node, value, threshold int, configHash string) core.Metric {
-	status := "pass"
+	status := core.StatusPass
 	reason := fmt.Sprintf("cyclomatic complexity %d is within threshold %d", value, threshold)
 	if value > threshold {
-		status = "warning"
+		status = core.StatusWarning
 		reason = fmt.Sprintf("cyclomatic complexity %d exceeds threshold %d", value, threshold)
 	}
 	return core.Metric{
 		ID:                "metric:" + CyclomaticMetricName + ":" + node.ID,
-		Kind:              "metric",
+		Kind:              core.FactKindMetric,
 		Name:              CyclomaticMetricName,
 		Value:             value,
 		Unit:              MetricUnit,
@@ -343,7 +343,7 @@ func metricFor(node core.Node, value, threshold int, configHash string) core.Met
 func decisionCountMetricFor(node core.Node, value int, configHash string) core.Metric {
 	return core.Metric{
 		ID:                "metric:" + DecisionCountMetricName + ":" + node.ID,
-		Kind:              "metric",
+		Kind:              core.FactKindMetric,
 		Name:              DecisionCountMetricName,
 		Value:             value,
 		Unit:              MetricUnit,
@@ -351,7 +351,7 @@ func decisionCountMetricFor(node core.Node, value int, configHash string) core.M
 		Subject:           node.ID,
 		AnalyzerID:        ID,
 		Stage:             string(pipeline.StageComplexityMetrics),
-		Status:            "pass",
+		Status:            core.StatusPass,
 		Reason:            fmt.Sprintf("decision count %d", value),
 		Evidence:          []string{node.ID},
 		TrustLevel:        core.TrustSyntaxObserved,
@@ -364,7 +364,7 @@ func decisionCountMetricFor(node core.Node, value int, configHash string) core.M
 func runtimeMarkerCountMetricFor(node core.Node, value int, configHash string) core.Metric {
 	return core.Metric{
 		ID:                "metric:" + RuntimeMarkerCountMetricName + ":" + node.ID,
-		Kind:              "metric",
+		Kind:              core.FactKindMetric,
 		Name:              RuntimeMarkerCountMetricName,
 		Value:             value,
 		Unit:              MetricUnit,
@@ -372,7 +372,7 @@ func runtimeMarkerCountMetricFor(node core.Node, value int, configHash string) c
 		Subject:           node.ID,
 		AnalyzerID:        ID,
 		Stage:             string(pipeline.StageComplexityMetrics),
-		Status:            "pass",
+		Status:            core.StatusPass,
 		Reason:            fmt.Sprintf("runtime marker count %d", value),
 		Evidence:          []string{node.ID},
 		TrustLevel:        core.TrustSyntaxObserved,
@@ -384,7 +384,7 @@ func runtimeMarkerCountMetricFor(node core.Node, value int, configHash string) c
 
 func diagnosticFor(metric core.Metric) core.Diagnostic {
 	return core.Diagnostic{
-		Level:      "warning",
+		Level:      core.StatusWarning,
 		Source:     "metric:" + metric.Scope,
 		Reason:     metric.Reason,
 		Stage:      metric.Stage,
@@ -405,7 +405,7 @@ func parseDiagnostic(sourceFile, lineRange, reason string) core.Diagnostic {
 		Reason:     reason,
 		Stage:      string(pipeline.StageComplexityMetrics),
 		AnalyzerID: ID,
-		Status:     "analysis_error",
+		Status:     core.StatusAnalysisError,
 		SourceFile: sourceFile,
 		LineRange:  lineRange,
 		TrustLevel: core.TrustSyntaxObserved,

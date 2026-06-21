@@ -20,7 +20,7 @@ func (b *graphBuilder) readinessDiagnostics(metadata pipeline.AnalyzerMetadata) 
 		return nil
 	}
 	reason := "analyzer input scope incomplete"
-	status := "analysis_skipped_incomplete_scope"
+	status := core.DiagnosticStatusAnalysisSkippedIncomplete
 	if policy == pipeline.IncompleteInputRequireComplete {
 		reason = "analyzer requires complete input scope"
 	}
@@ -46,7 +46,7 @@ func (b *graphBuilder) incompleteInputFacts(kinds []string) []string {
 		if !wanted[node.Kind] {
 			continue
 		}
-		if node.Synthetic || node.Kind == "placeholder" || strings.HasPrefix(node.ID, "placeholder:") {
+		if core.IsPlaceholderNode(node) {
 			out = append(out, node.ID)
 		}
 	}
@@ -54,7 +54,7 @@ func (b *graphBuilder) incompleteInputFacts(kinds []string) []string {
 		if !wanted[edge.Kind] {
 			continue
 		}
-		if edge.Synthetic || !edge.Complete || strings.HasPrefix(edge.To, "placeholder:") {
+		if core.IsIncompleteEdge(edge) {
 			out = append(out, edge.ID)
 		}
 	}
