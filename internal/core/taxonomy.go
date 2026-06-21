@@ -72,6 +72,7 @@ const (
 	ObservationNameVocabularyIncompleteDependency = "vocabulary.incomplete_dependency"
 	ObservationNameVocabularyCooccurrence         = "vocabulary.cooccurrence"
 	ObservationNameLanguageZoneCandidate          = "vocabulary.language_zone_candidate"
+	ObservationNameBridgeSymbol                   = "vocabulary.bridge_symbol"
 )
 
 const (

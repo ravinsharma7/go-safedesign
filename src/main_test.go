@@ -154,6 +154,10 @@ func TestPrototypeFixtureGraph(t *testing.T) {
 	if langZoneRun == nil || langZoneRun.Status != "completed" || langZoneRun.EmittedFacts == 0 {
 		t.Fatalf("language zone candidate run = %#v, want completed run with observations", langZoneRun)
 	}
+	bridgeRun := runByAnalyzer(graph, "bridge_symbol")
+	if bridgeRun == nil || bridgeRun.Status != "completed" || bridgeRun.EmittedFacts == 0 {
+		t.Fatalf("bridge symbol run = %#v, want completed run with observations", bridgeRun)
+	}
 	dddRun := runByAnalyzer(graph, "ubiquitous_language")
 	if dddRun == nil || dddRun.AnalyzerID != "ubiquitous_language" || dddRun.Status != "completed" || dddRun.ConfigurationHash == "" {
 		t.Fatalf("ddd classification run = %#v, want ubiquitous language completed run with config hash", dddRun)
@@ -180,6 +184,9 @@ func TestPrototypeFixtureGraph(t *testing.T) {
 	}
 	if !hasObservation(graph, core.ObservationNameLanguageZoneCandidate) {
 		t.Fatalf("observations = %#v, missing language zone candidate observation", graph.Observations)
+	}
+	if !hasObservation(graph, core.ObservationNameBridgeSymbol) {
+		t.Fatalf("observations = %#v, missing bridge symbol observation", graph.Observations)
 	}
 	if len(graph.PolicyResults) != 4 {
 		t.Fatalf("policy results = %#v, want 4", graph.PolicyResults)

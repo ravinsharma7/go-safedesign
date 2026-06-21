@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"testing"
 
+	"go-safedesign/internal/analyzers/bridge"
 	"go-safedesign/internal/analyzers/complexity"
 	"go-safedesign/internal/analyzers/deppolicy"
 	"go-safedesign/internal/analyzers/langzone"
@@ -15,6 +16,7 @@ import (
 
 func TestProductionAnalyzerMetadataSatisfiesContract(t *testing.T) {
 	all := []pipeline.AnalyzerMetadata{
+		bridge.Metadata(),
 		complexity.Metadata(),
 		deppolicy.Metadata(),
 		langzone.Metadata(),

@@ -241,14 +241,14 @@ Completed foundation:
 5. Internal observation projections provide optional convenience summaries over raw facts.
 6. Language-zone candidate analysis emits package-scoped candidate observations for human
    inspection.
+7. Bridge-symbol analysis emits dependency-backed evidence between candidate zones.
 
 Next iterations:
 
-1. Join language-zone candidates with dependency neighborhoods.
-2. Add ambiguity and synonym candidate evidence.
-3. Add bridge-symbol evidence.
-4. Add an annotation import/export path using SQLite or DuckDB.
-5. Redesign the viewer around progressive disclosure after the internal facts are stable.
+1. Add ambiguity and synonym candidate evidence.
+2. Add richer dependency-neighborhood summaries around bridge evidence.
+3. Add an annotation import/export path using SQLite or DuckDB.
+4. Redesign the viewer around progressive disclosure after the internal facts are stable.
 
 ## Prompting Guidance
 

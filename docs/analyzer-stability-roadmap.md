@@ -18,6 +18,8 @@ Implemented core guardrails:
 7. `internal/observations` provides convenience projections over observations.
 8. Language-zone candidate analysis emits package-scoped candidate observations for
    human inspection.
+9. Bridge-symbol analysis emits evidence for complete package edges connecting language
+   zone candidates.
 
 Projection helpers are not canonical semantics. They are read-only summaries over
 `graph.Observations` for callers that want common groupings without duplicating traversal
@@ -39,12 +41,15 @@ ubiquitous_language
 
 language_zone_candidate
   Emits candidate language-zone evidence before any bounded-context conclusion.
+
+bridge_symbol
+  Emits dependency-backed bridge evidence between language-zone candidates.
 ```
 
 ## Next Steps
 
 1. Add more observation projections only when they remove real duplication for callers.
-2. Add ambiguity, synonym, and bridge-symbol evidence as observations.
+2. Add ambiguity and synonym evidence as observations.
 3. Keep placeholder-backed evidence from supporting complete conclusions.
 4. Keep configured validation separate from zero-config discovery.
 5. Avoid viewer-specific assumptions in analyzer output.

@@ -24,6 +24,18 @@
         ]
       },
       {
+        "id": "bridge-symbol-boundary",
+        "package": "go-safedesign/internal/analyzers/bridge",
+        "allow": [
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/pipeline",
+          "reflect",
+          "sort",
+          "strings",
+          "testing"
+        ]
+      },
+      {
         "id": "dependency-policy-analyzer-boundary",
         "package": "go-safedesign/internal/analyzers/deppolicy",
         "allow": [

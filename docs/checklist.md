@@ -23,6 +23,7 @@ Legend:
 - [~] Browser graph/code exploration UI with mode switching, pan, zoom, selection, neighbor focus, and source-block evidence without a duplicated schema.
 - [~] Viewer policy navigation; policy results are clickable, evidence-backed, and status-filtered, richer drill-down is still projected.
 - [~] Language-zone candidate evidence; candidates are observations for human inspection, not bounded-context conclusions.
+- [~] Bridge-symbol evidence; bridge observations explain candidate-zone coupling without declaring boundaries.
 
 ## Prototyping / Discovery
 
