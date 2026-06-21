@@ -12,6 +12,7 @@ import (
 	"go-safedesign/internal/analyzers/moddep"
 	"go-safedesign/internal/analyzers/ubilang"
 	"go-safedesign/internal/analyzers/vocab"
+	"go-safedesign/internal/analyzers/vocabco"
 	"go-safedesign/internal/config"
 	"go-safedesign/internal/core"
 	"go-safedesign/internal/pipeline"
@@ -190,6 +191,7 @@ func BuildGraph(opts Options) (Graph, error) {
 	}
 	b.runAnalyzer(moddep.Analyzer{})
 	b.runAnalyzer(vocab.Analyzer{})
+	b.runAnalyzer(vocabco.Analyzer{})
 	b.runAnalyzer(ublang.Analyzer{})
 	if !opts.DisableComplexity {
 		b.runAnalyzer(complexity.Analyzer{})

@@ -76,6 +76,19 @@
         ]
       },
       {
+        "id": "vocabulary-cooccurrence-boundary",
+        "package": "go-safedesign/internal/analyzers/vocabco",
+        "allow": [
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/pipeline",
+          "reflect",
+          "sort",
+          "strconv",
+          "strings",
+          "testing"
+        ]
+      },
+      {
         "id": "viewer-boundary",
         "package": "go-safedesign/internal/viewer",
         "allow": [

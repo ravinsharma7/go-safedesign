@@ -145,6 +145,10 @@ func TestPrototypeFixtureGraph(t *testing.T) {
 	if vocabRun == nil || vocabRun.Status != "completed" || vocabRun.EmittedFacts == 0 {
 		t.Fatalf("vocabulary extraction run = %#v, want completed run with observations", vocabRun)
 	}
+	vocabCoRun := runByAnalyzer(graph, "vocabulary_cooccurrence")
+	if vocabCoRun == nil || vocabCoRun.Status != "completed" || vocabCoRun.EmittedFacts == 0 {
+		t.Fatalf("vocabulary cooccurrence run = %#v, want completed run with observations", vocabCoRun)
+	}
 	dddRun := runByAnalyzer(graph, "ubiquitous_language")
 	if dddRun == nil || dddRun.AnalyzerID != "ubiquitous_language" || dddRun.Status != "completed" || dddRun.ConfigurationHash == "" {
 		t.Fatalf("ddd classification run = %#v, want ubiquitous language completed run with config hash", dddRun)
@@ -165,6 +169,9 @@ func TestPrototypeFixtureGraph(t *testing.T) {
 	}
 	if !hasMetric(graph, "ubiquitous_language_alignment", "pass", "package:example.com/shop/order") {
 		t.Fatalf("metrics = %#v, missing ubiquitous language alignment metric", graph.Metrics)
+	}
+	if !hasObservation(graph, core.ObservationNameVocabularyCooccurrence) {
+		t.Fatalf("observations = %#v, missing vocabulary cooccurrence observation", graph.Observations)
 	}
 	if len(graph.PolicyResults) != 4 {
 		t.Fatalf("policy results = %#v, want 4", graph.PolicyResults)
@@ -493,6 +500,15 @@ func runByAnalyzer(graph core.Graph, analyzerID string) *core.RunRecord {
 		}
 	}
 	return nil
+}
+
+func hasObservation(graph core.Graph, name string) bool {
+	for _, observation := range graph.Observations {
+		if observation.Name == name && len(observation.Evidence) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func hasDiagnostic(graph core.Graph, status, reason string) bool {

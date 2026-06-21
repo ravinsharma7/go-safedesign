@@ -70,6 +70,7 @@ const (
 
 	ObservationNameVocabularyTerm                 = "vocabulary.term"
 	ObservationNameVocabularyIncompleteDependency = "vocabulary.incomplete_dependency"
+	ObservationNameVocabularyCooccurrence         = "vocabulary.cooccurrence"
 )
 
 const (
