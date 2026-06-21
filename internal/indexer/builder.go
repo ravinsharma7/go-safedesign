@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"go-safedesign/internal/config"
-	"go-safedesign/internal/core"
-	"go-safedesign/internal/pipeline"
+	"github.com/ravinsharma7/go-safedesign/internal/config"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/pipeline"
 )
 
 type Graph = core.Graph

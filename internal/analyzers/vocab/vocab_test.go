@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"go-safedesign/internal/core"
-	"go-safedesign/internal/pipeline"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/pipeline"
 )
 
 func TestSplitWordsHandlesIdentifierStyles(t *testing.T) {

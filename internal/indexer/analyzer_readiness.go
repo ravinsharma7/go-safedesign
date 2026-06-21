@@ -3,8 +3,8 @@ package indexer
 import (
 	"strings"
 
-	"go-safedesign/internal/core"
-	"go-safedesign/internal/pipeline"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/pipeline"
 )
 
 func (b *graphBuilder) readinessDiagnostics(metadata pipeline.AnalyzerMetadata) []core.Diagnostic {

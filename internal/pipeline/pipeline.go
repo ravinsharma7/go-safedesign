@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"time"
 
-	"go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
 )
 
 type Stage string

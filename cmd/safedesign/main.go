@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"go-safedesign/internal/indexer"
-	"go-safedesign/internal/viewer"
+	"github.com/ravinsharma7/go-safedesign/internal/indexer"
+	"github.com/ravinsharma7/go-safedesign/internal/viewer"
 )
 
 func main() {

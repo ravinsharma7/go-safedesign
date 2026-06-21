@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
 )
 
 func TestHandlerServesEmbeddedHTML(t *testing.T) {

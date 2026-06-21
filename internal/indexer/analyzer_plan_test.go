@@ -3,7 +3,7 @@ package indexer
 import (
 	"testing"
 
-	"go-safedesign/internal/pipeline"
+	"github.com/ravinsharma7/go-safedesign/internal/pipeline"
 )
 
 func TestAnalyzerPlanIncludeExpandsLanguageZoneDependencies(t *testing.T) {

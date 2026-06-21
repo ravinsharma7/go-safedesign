@@ -570,8 +570,8 @@ The running project checklist lives in [`docs/checklist.md`](./checklist.md).
 The checked-in prototype demonstrates the contract with a deterministic local workspace:
 
 ```text
-go run ./src --path testdata/workspace/shop --json
-go run ./src --path testdata/workspace/shop --serve :8080
+go run ./cmd/safedesign --path testdata/workspace/shop --json
+go run ./cmd/safedesign --path testdata/workspace/shop --serve :8080
 ```
 
 The fixture contains:

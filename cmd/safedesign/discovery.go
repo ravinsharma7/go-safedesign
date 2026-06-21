@@ -1,8 +1,8 @@
 package main
 
 import (
-	"go-safedesign/internal/core"
-	"go-safedesign/internal/indexer"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/indexer"
 )
 
 type valueDiscoveryReport struct {

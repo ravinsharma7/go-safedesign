@@ -1,6 +1,6 @@
 package indexer
 
-import "go-safedesign/internal/core"
+import "github.com/ravinsharma7/go-safedesign/internal/core"
 
 func (b *graphBuilder) metadataForCurrentRun() core.FactMetadata {
 	run := b.currentRun

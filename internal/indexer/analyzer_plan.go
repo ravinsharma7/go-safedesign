@@ -5,15 +5,15 @@ import (
 	"sort"
 	"strings"
 
-	"go-safedesign/internal/analyzers/bridge"
-	"go-safedesign/internal/analyzers/complexity"
-	"go-safedesign/internal/analyzers/deppolicy"
-	"go-safedesign/internal/analyzers/langzone"
-	"go-safedesign/internal/analyzers/moddep"
-	"go-safedesign/internal/analyzers/ubilang"
-	"go-safedesign/internal/analyzers/vocab"
-	"go-safedesign/internal/analyzers/vocabco"
-	"go-safedesign/internal/pipeline"
+	"github.com/ravinsharma7/go-safedesign/internal/analyzers/bridge"
+	"github.com/ravinsharma7/go-safedesign/internal/analyzers/complexity"
+	"github.com/ravinsharma7/go-safedesign/internal/analyzers/deppolicy"
+	"github.com/ravinsharma7/go-safedesign/internal/analyzers/langzone"
+	"github.com/ravinsharma7/go-safedesign/internal/analyzers/moddep"
+	"github.com/ravinsharma7/go-safedesign/internal/analyzers/ubilang"
+	"github.com/ravinsharma7/go-safedesign/internal/analyzers/vocab"
+	"github.com/ravinsharma7/go-safedesign/internal/analyzers/vocabco"
+	"github.com/ravinsharma7/go-safedesign/internal/pipeline"
 )
 
 const (

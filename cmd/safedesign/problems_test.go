@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
 )
 
 func TestProblemsReportIncludesOnlyProblemFacts(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
 )
 
 func ValidateAnalyzerMetadata(metadata AnalyzerMetadata) []core.Diagnostic {

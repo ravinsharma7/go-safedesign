@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	srcutil "go-safedesign/internal/source"
+	srcutil "github.com/ravinsharma7/go-safedesign/internal/source"
 )
 
 func packagePath(mod moduleInfo, dir string) string {

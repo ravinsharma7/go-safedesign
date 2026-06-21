@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"go-safedesign/internal/core"
-	"go-safedesign/internal/source"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/source"
 )
 
 //go:embed assets/index.html

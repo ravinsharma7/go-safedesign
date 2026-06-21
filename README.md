@@ -1,18 +1,112 @@
 # introduction
-I'm experimenting how to do drive software design in golang that is not bottlenecked by code review. Meaning code review I deem extremely important, but how to enable it so it more easier when the code is being produced at a very high  rate.
+I'm experimenting how to do drive software design in golang that is not bottlenecked by code review. I deem code review as important, but there seem to be some bad impression that code review is a "bottleneck" when using agents to create code at a very fast pace. 
+This tool enables human(or agent) reviewer to get a better picture of code and intention quickly.
 
 ## status
-- alpha and experimental
+- alpha and experimental. api, command, output may suddenly change.
+
+## some goals: safe design tool
+1. cyclomatic complexity analyzer that you can adjust
+2. uses the language used by the codebase and API as baseline for quick judgement.
+3. need to works on Linux with a large git codebase
+4. common checks: cyclic import, allowed import, outdated modules, etc
+5. make zero assumption of project folder structure and friendly to live development workflow: 
+   - can start from arbitary go.mod definition.
+   - arbitrary file and folder entry.
+   - live changes during development.  
+   - does not block code editor or git operation.
+6. integrates with go fix and go ecosystem
+7. co-tool with agents and humans. viewer to see codebase structure and architecture.
+8. extension for more domain specific checks and analysis.
+
+## go tool usage
+Register go-safedesign as a module-defined Go tool from the default branch:
+
+```sh
+go get -tool github.com/ravinsharma7/go-safedesign/cmd/safedesign@main
+```
+
+Run the registered tool from the consuming module:
+
+```sh
+go tool safedesign --path . --problems
+go tool safedesign --path . --ddd-report
+go tool safedesign --list-values --stdout
+```
+
+Update to the latest default-branch commit by running the same registration command again:
+
+```sh
+go get -tool github.com/ravinsharma7/go-safedesign/cmd/safedesign@main
+```
+
+Check the currently selected version and compare it with the current default-branch pseudo-version:
+
+```sh
+go list -m -json github.com/ravinsharma7/go-safedesign
+go list -m -json github.com/ravinsharma7/go-safedesign@main
+```
+
+If the `@main` pseudo-version is newer, run `go get -tool github.com/ravinsharma7/go-safedesign/cmd/safedesign@main` to update the selected tool version.
+
+Remove the registered tool from the consuming module:
+
+```sh
+go get -tool github.com/ravinsharma7/go-safedesign/cmd/safedesign@none
+go mod tidy
+```
+
+## alpha branch and tag release process
+Use this process when publishing an alpha snapshot branch such as `alpha-0.1.0` from `dev`.
+
+Commit the release state on `dev`, then point both the branch and annotated tag at that commit:
+
+```sh
+git switch dev
+git status --short
+git add -A
+git commit -m "add go tool deployment support"
+release_commit=$(git rev-parse HEAD)
+git tag -f -a alpha-0.1.0 -m "alpha-0.1.0" "$release_commit"
+git branch -f alpha-0.1.0 "$release_commit"
+```
+
+Push with fully qualified refs because the branch and tag intentionally share the same name:
+
+```sh
+git push -u origin refs/heads/dev:refs/heads/dev
+git push --force-with-lease origin refs/heads/alpha-0.1.0:refs/heads/alpha-0.1.0
+git push --force origin refs/tags/alpha-0.1.0:refs/tags/alpha-0.1.0
+```
+
+Verify the branch and tag resolve to the same commit:
+
+```sh
+git rev-parse refs/heads/alpha-0.1.0
+git rev-parse 'refs/tags/alpha-0.1.0^{}'
+git ls-remote --symref origin HEAD refs/heads/alpha-0.1.0 refs/tags/alpha-0.1.0 'refs/tags/alpha-0.1.0^{}'
+```
+
+Set the GitHub repository default branch to the latest `alpha-*` branch in repository settings, or with an owner/admin token:
+
+```sh
+curl -fsS -X PATCH \
+  -H "Authorization: Bearer $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/ravinsharma7/go-safedesign \
+  -d '{"default_branch":"alpha-0.1.0"}'
+```
 
 ## quick commands
 Run go-safedesign against this module with its own `safedesign.config.json`:
 
 ```sh
-go run ./src --list-values
-go run ./src --path . --json
-go run ./src --path . --json --json-sections nodes,edges
-go run ./src --path . --json --json-sections observations --json-observation-names vocabulary.language_zone_candidate
-go run ./src --path . --json --output-dir /tmp/go-safedesign-report
+go run ./cmd/safedesign --list-values
+go run ./cmd/safedesign --path . --json
+go run ./cmd/safedesign --path . --json --json-sections nodes,edges
+go run ./cmd/safedesign --path . --json --json-sections observations --json-observation-names vocabulary.language_zone_candidate
+go run ./cmd/safedesign --path . --json --output-dir /tmp/go-safedesign-report
 ```
 
 By default, JSON output modes write files under `tmp/report`: `values.json`, `graph.json`, `stats.json`, `ddd-report.json`, or `problems.json`. Use `--stdout` when piping to `jq` or another command. Use `--output-dir <path>` to choose a different report directory.
@@ -22,25 +116,25 @@ By default, module discovery is bounded to the nearest `go.mod` root. Use `--wor
 For a compact DDD evidence report over language-zone candidates, bridge evidence, incomplete dependency evidence, and supporting stats:
 
 ```sh
-go run ./src --path . --ddd-report
-go run ./src --path . --ddd-report --scope-package go-safedesign/internal/indexer
+go run ./cmd/safedesign --path . --ddd-report
+go run ./cmd/safedesign --path . --ddd-report --scope-package github.com/ravinsharma7/go-safedesign/internal/indexer
 ```
 
 For a compact agent-facing report of only diagnostics, non-pass policy/query facts, warning metrics, and non-completed runs:
 
 ```sh
-go run ./src --path . --problems
+go run ./cmd/safedesign --path . --problems
 ```
 
 For scoped graph inventory counts:
 
 ```sh
-go run ./src --path . --stats
-go run ./src --path . --stats --stdout | jq '.workspace'
-go run ./src --path . --stats --stdout | jq '.modules[] | {modulePath, dir, discoveryReasons, packages, files, dependsOn, missingDependencies}'
-go run ./src --path . --stats --stdout | jq '.packages[] | {packagePath, modulePath}'
-go run ./src --path . --stats --scope-module go-safedesign
-go run ./src --path . --stats --scope-file internal/indexer/builder.go
+go run ./cmd/safedesign --path . --stats
+go run ./cmd/safedesign --path . --stats --stdout | jq '.workspace'
+go run ./cmd/safedesign --path . --stats --stdout | jq '.modules[] | {modulePath, dir, discoveryReasons, packages, files, dependsOn, missingDependencies}'
+go run ./cmd/safedesign --path . --stats --stdout | jq '.packages[] | {packagePath, modulePath}'
+go run ./cmd/safedesign --path . --stats --scope-module github.com/ravinsharma7/go-safedesign
+go run ./cmd/safedesign --path . --stats --scope-file internal/indexer/builder.go
 ```
 
 Use `.modules[]` to inspect module inventory. Use `.packages[]` to inspect packages grouped by their `modulePath`; package output will not show modules that have no discovered packages. To scan sibling modules, pass `--workspace-root`; otherwise `--path` is bounded to the nearest `go.mod`.
@@ -48,29 +142,29 @@ Use `.modules[]` to inspect module inventory. Use `.packages[]` to inspect packa
 For a multi-module workspace:
 
 ```sh
-go run ./src --path testdata/workspace/shop --workspace-root testdata/workspace --stats
-go run ./src --path testdata/workspace/shop --workspace-root testdata/workspace --stats --scope-module example.com/shop
-go run ./src --path testdata/workspace/shop --workspace-root testdata/workspace --stats --stdout | jq '.modules[] | {modulePath, dir, discoveryReasons, packages, files, dependsOn, dependedOnBy, missingDependencies}'
+go run ./cmd/safedesign --path testdata/workspace/shop --workspace-root testdata/workspace --stats
+go run ./cmd/safedesign --path testdata/workspace/shop --workspace-root testdata/workspace --stats --scope-module example.com/shop
+go run ./cmd/safedesign --path testdata/workspace/shop --workspace-root testdata/workspace --stats --stdout | jq '.modules[] | {modulePath, dir, discoveryReasons, packages, files, dependsOn, dependedOnBy, missingDependencies}'
 ```
 
 Analyzer execution can be narrowed for faster exploration. Positive selection expands required prerequisites; skip selection also removes dependent analyzers that cannot run safely.
 
 ```sh
-go run ./src --path . --ddd-report --analyzers language_zone_candidate
-go run ./src --path . --problems --skip-analyzers complexity
+go run ./cmd/safedesign --path . --ddd-report --analyzers language_zone_candidate
+go run ./cmd/safedesign --path . --problems --skip-analyzers complexity
 ```
 
 For other Go projects, point `--path` at the project root, module root, package directory, or a Go file. Use `--workspace-root` for monorepos and `--config` when the shared `safedesign.config.json` lives outside the analyzed root.
 
 ```sh
-go run ./src --path /path/to/project --ddd-report
-go run ./src --path /path/to/project --problems
-go run ./src --path /path/to/project --json
-go run ./src --path /path/to/project --json --stdout > safedesign-graph.json
-go run ./src --path /path/to/project --json --json-sections nodes --json-node-kinds module,package,file
-go run ./src --path /path/to/project/module-a --workspace-root /path/to/project --stats
-go run ./src --path /path/to/project/module-a --workspace-root /path/to/project --stats --stdout | jq '.modules[] | {modulePath, dir, discoveryReasons, packages, files, dependsOn, missingDependencies}'
-go run ./src --path /path/to/project/module-a --workspace-root /path/to/project --config /path/to/safedesign.config.json --ddd-report
+go run ./cmd/safedesign --path /path/to/project --ddd-report
+go run ./cmd/safedesign --path /path/to/project --problems
+go run ./cmd/safedesign --path /path/to/project --json
+go run ./cmd/safedesign --path /path/to/project --json --stdout > safedesign-graph.json
+go run ./cmd/safedesign --path /path/to/project --json --json-sections nodes --json-node-kinds module,package,file
+go run ./cmd/safedesign --path /path/to/project/module-a --workspace-root /path/to/project --stats
+go run ./cmd/safedesign --path /path/to/project/module-a --workspace-root /path/to/project --stats --stdout | jq '.modules[] | {modulePath, dir, discoveryReasons, packages, files, dependsOn, missingDependencies}'
+go run ./cmd/safedesign --path /path/to/project/module-a --workspace-root /path/to/project --config /path/to/safedesign.config.json --ddd-report
 ```
 
 The graph is one workspace graph, not one graph per module. Module boundaries are represented by module nodes, package/file `modulePath` metadata, `depends_on` edges, and module-aware report scopes. `go.work use` entries and local `go.mod replace` paths are followed when they point to a directory with `go.mod`, even outside `--workspace-root`. Required modules not discovered locally remain placeholder module nodes and appear in stats as `missingDependencies`.
@@ -102,7 +196,7 @@ Output destination:
 Generated reports under `tmp/report` are ignored by Git and excluded from VS Code file watching/search by `.vscode/settings.json`. If you use a different long-lived report directory, add the same path to `files.watcherExclude` and `search.exclude`.
 
 JSON shaping:
-- Discover available filter values from the current command with `go run ./src --list-values --stdout`.
+- Discover available filter values from the current command with `go run ./cmd/safedesign --list-values --stdout`.
 - `--json-sections <sections>`: comma-separated top-level graph sections to emit, for example `nodes,edges,observations`.
 - `--json-node-kinds <kinds>`: comma-separated node kinds to keep in `--json`, for example `module,package,file`.
 - `--json-edge-kinds <kinds>`: comma-separated edge kinds to keep in `--json`, for example `imports,depends_on`.
@@ -110,8 +204,8 @@ JSON shaping:
 
 Report shaping:
 - `--limit <n>`: maximum number of items per compact report list; applies to `--ddd-report`, `--stats` where lists are added later, and `--problems`.
-- `--scope-module <module>`: limit compact report output to module-related facts, for example `--scope-module go-safedesign`.
-- `--scope-package <package>`: limit compact report output to package-related facts, for example `--scope-package go-safedesign/internal/indexer`.
+- `--scope-module <module>`: limit compact report output to module-related facts, for example `--scope-module github.com/ravinsharma7/go-safedesign`.
+- `--scope-package <package>`: limit compact report output to package-related facts, for example `--scope-package github.com/ravinsharma7/go-safedesign/internal/indexer`.
 - `--scope-file <file>`: limit compact report output to source-file-backed facts, for example `--scope-file internal/indexer/builder.go`.
 
 Analyzer execution:
@@ -120,22 +214,9 @@ Analyzer execution:
 - `--disable-policy`: compatibility shorthand for skipping `dependency_policy`.
 - `--disable-complexity`: compatibility shorthand for skipping `complexity`.
 - `--simulate-change`: include a simulated changed-file freshness record.
-- Discover current analyzer IDs with `go run ./src --list-values --stdout | jq '.analyzerIds'`.
+- Discover current analyzer IDs with `go run ./cmd/safedesign --list-values --stdout | jq '.analyzerIds'`.
 
 Trust levels:
-- Discover current trust levels, ranks, and descriptions with `go run ./src --list-values --stdout | jq '.trustLevels'`.
+- Discover current trust levels, ranks, and descriptions with `go run ./cmd/safedesign --list-values --stdout | jq '.trustLevels'`.
 - Higher ranks mean stronger evidence. An analyzer cannot emit facts above its declared maximum emitted trust.
 - Placeholder-backed or incomplete facts should not be treated as complete conclusions, even when they carry syntax-level evidence.
-
-# some goals: safe design tool
-1. cyclomatic complexity analyzer that you can adjust
-2. uses the language used by the codebase and API as baseline for quick judgement.
-3. need to works on Linux with a large git codebase
-4. common checks: cyclic import, allowed import, outdated modules
-5. make zero assumption of project folder structure and friendly to live development workflow: 
-   - can start from go.mod.
-   - arbitrary file and folder entry.
-   - live changes.  
-   - does not block code editor or git operation
-6. integrates with go fix and go ecosystem
-7. co-tool with agents and humans

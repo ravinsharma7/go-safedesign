@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"go-safedesign/internal/core"
-	"go-safedesign/internal/indexer"
-	"go-safedesign/internal/pipeline"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/indexer"
+	"github.com/ravinsharma7/go-safedesign/internal/pipeline"
 )
 
 func TestPrototypeFixtureGraph(t *testing.T) {
@@ -216,8 +216,8 @@ func TestPrototypeFixtureGraph(t *testing.T) {
 
 func TestDisableComplexityRemovesMetricsAndUnknownsQuery(t *testing.T) {
 	graph, err := indexer.BuildGraph(indexer.Options{
-		Path:              filepath.Join("..", "testdata", "workspace", "shop"),
-		WorkspaceRoot:     filepath.Join("..", "testdata", "workspace"),
+		Path:              filepath.Join("..", "..", "testdata", "workspace", "shop"),
+		WorkspaceRoot:     filepath.Join("..", "..", "testdata", "workspace"),
 		SimulateChange:    true,
 		DisableComplexity: true,
 	})
@@ -276,8 +276,8 @@ func TestFixtureProblemsReportIncludesExpectedProblems(t *testing.T) {
 
 func TestSelfDogfoodGraphUsesBoundedWorkspaceRoot(t *testing.T) {
 	graph, err := indexer.BuildGraph(indexer.Options{
-		Path:           "..",
-		WorkspaceRoot:  "..",
+		Path:           filepath.Join("..", ".."),
+		WorkspaceRoot:  filepath.Join("..", ".."),
 		SimulateChange: false,
 	})
 	if err != nil {
@@ -286,11 +286,11 @@ func TestSelfDogfoodGraphUsesBoundedWorkspaceRoot(t *testing.T) {
 	if got := countKind(graph.Nodes, "module"); got != 1 {
 		t.Fatalf("module count = %d, want 1 for bounded self-analysis", got)
 	}
-	if nodeByID(graph, "module:go-safedesign") == nil {
+	if nodeByID(graph, "module:github.com/ravinsharma7/go-safedesign") == nil {
 		t.Fatalf("modules = %#v, missing go-safedesign module", nodesByKind(graph.Nodes, "module"))
 	}
 	for _, node := range graph.Nodes {
-		if node.Kind == "module" && node.ID != "module:go-safedesign" {
+		if node.Kind == "module" && node.ID != "module:github.com/ravinsharma7/go-safedesign" {
 			t.Fatalf("unexpected module from outside bounded workspace: %#v", node)
 		}
 	}
@@ -298,8 +298,8 @@ func TestSelfDogfoodGraphUsesBoundedWorkspaceRoot(t *testing.T) {
 
 func TestSelfDogfoodGraphEmitsPolicyAndComplexityFacts(t *testing.T) {
 	graph, err := indexer.BuildGraph(indexer.Options{
-		Path:           "..",
-		WorkspaceRoot:  "..",
+		Path:           filepath.Join("..", ".."),
+		WorkspaceRoot:  filepath.Join("..", ".."),
 		SimulateChange: false,
 	})
 	if err != nil {
@@ -341,8 +341,8 @@ func TestFixtureLanguageZoneCandidatesSatisfyQualityInvariants(t *testing.T) {
 
 func TestSelfDogfoodLanguageZoneCandidatesSatisfyQualityInvariants(t *testing.T) {
 	graph, err := indexer.BuildGraph(indexer.Options{
-		Path:           "..",
-		WorkspaceRoot:  "..",
+		Path:           filepath.Join("..", ".."),
+		WorkspaceRoot:  filepath.Join("..", ".."),
 		SimulateChange: false,
 	})
 	if err != nil {
@@ -357,8 +357,8 @@ func TestSelfDogfoodLanguageZoneCandidatesSatisfyQualityInvariants(t *testing.T)
 
 func TestSelfDogfoodProblemsReportHasNoPolicyFailures(t *testing.T) {
 	graph, err := indexer.BuildGraph(indexer.Options{
-		Path:           "..",
-		WorkspaceRoot:  "..",
+		Path:           filepath.Join("..", ".."),
+		WorkspaceRoot:  filepath.Join("..", ".."),
 		SimulateChange: false,
 	})
 	if err != nil {
@@ -376,7 +376,7 @@ func TestSelfDogfoodProblemsReportHasNoPolicyFailures(t *testing.T) {
 func TestPrototypeGoldenSummary(t *testing.T) {
 	graph := buildFixtureGraph(t)
 	got := summarizeGraph(graph)
-	wantPath := filepath.Join("..", "test", "golden", "prototype_summary.json.golden")
+	wantPath := filepath.Join("..", "..", "test", "golden", "prototype_summary.json.golden")
 	wantBytes, err := os.ReadFile(wantPath)
 	if err != nil {
 		t.Fatal(err)
@@ -395,8 +395,8 @@ func TestPrototypeGoldenSummary(t *testing.T) {
 func buildFixtureGraph(t *testing.T) core.Graph {
 	t.Helper()
 	graph, err := indexer.BuildGraph(indexer.Options{
-		Path:           filepath.Join("..", "testdata", "workspace", "shop"),
-		WorkspaceRoot:  filepath.Join("..", "testdata", "workspace"),
+		Path:           filepath.Join("..", "..", "testdata", "workspace", "shop"),
+		WorkspaceRoot:  filepath.Join("..", "..", "testdata", "workspace"),
 		SimulateChange: true,
 	})
 	if err != nil {

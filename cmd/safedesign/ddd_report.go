@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
 )
 
 type dddReport struct {

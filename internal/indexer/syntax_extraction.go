@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"go-safedesign/internal/core"
-	"go-safedesign/internal/pipeline"
-	srcutil "go-safedesign/internal/source"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/pipeline"
+	srcutil "github.com/ravinsharma7/go-safedesign/internal/source"
 )
 
 func (b *graphBuilder) indexGoFiles() error {

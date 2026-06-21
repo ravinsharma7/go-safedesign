@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
 )
 
 type statsReport struct {

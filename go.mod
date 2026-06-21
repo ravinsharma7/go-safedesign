@@ -1,4 +1,4 @@
-module go-safedesign
+module github.com/ravinsharma7/go-safedesign
 
 go 1.26
 

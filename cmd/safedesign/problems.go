@@ -1,6 +1,6 @@
 package main
 
-import "go-safedesign/internal/core"
+import "github.com/ravinsharma7/go-safedesign/internal/core"
 
 type problemsReport struct {
 	Summary       problemsSummary     `json:"summary"`

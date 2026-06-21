@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"go-safedesign/internal/core"
-	srcutil "go-safedesign/internal/source"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
+	srcutil "github.com/ravinsharma7/go-safedesign/internal/source"
 )
 
 func (b *graphBuilder) discoverSources() error {

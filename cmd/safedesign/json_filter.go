@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"go-safedesign/internal/core"
+	"github.com/ravinsharma7/go-safedesign/internal/core"
 )
 
 type graphJSONFilterOptions struct {

@@ -8,12 +8,12 @@
     "rules": [
       {
         "id": "complexity-analyzer-boundary",
-        "package": "go-safedesign/internal/analyzers/complexity",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/analyzers/complexity",
         "allow": [
           "encoding/json",
           "fmt",
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
           "go/ast",
           "go/parser",
           "go/token",
@@ -25,10 +25,10 @@
       },
       {
         "id": "bridge-symbol-boundary",
-        "package": "go-safedesign/internal/analyzers/bridge",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/analyzers/bridge",
         "allow": [
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
           "reflect",
           "sort",
           "strings",
@@ -37,11 +37,11 @@
       },
       {
         "id": "dependency-policy-analyzer-boundary",
-        "package": "go-safedesign/internal/analyzers/deppolicy",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/analyzers/deppolicy",
         "allow": [
           "encoding/json",
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
           "sort",
           "strings",
           "testing"
@@ -49,23 +49,23 @@
       },
       {
         "id": "module-dependency-enrichment-boundary",
-        "package": "go-safedesign/internal/analyzers/moddep",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/analyzers/moddep",
         "allow": [
           "encoding/json",
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
           "sort",
           "testing"
         ]
       },
       {
         "id": "ubiquitous-language-boundary",
-        "package": "go-safedesign/internal/analyzers/ubilang",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/analyzers/ubilang",
         "allow": [
           "encoding/json",
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/pipeline",
-          "go-safedesign/internal/wordcase",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/wordcase",
           "reflect",
           "sort",
           "strings",
@@ -74,11 +74,11 @@
       },
       {
         "id": "vocabulary-extraction-boundary",
-        "package": "go-safedesign/internal/analyzers/vocab",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/analyzers/vocab",
         "allow": [
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/pipeline",
-          "go-safedesign/internal/wordcase",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/wordcase",
           "path/filepath",
           "reflect",
           "sort",
@@ -89,10 +89,10 @@
       },
       {
         "id": "vocabulary-cooccurrence-boundary",
-        "package": "go-safedesign/internal/analyzers/vocabco",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/analyzers/vocabco",
         "allow": [
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
           "reflect",
           "sort",
           "strconv",
@@ -102,10 +102,10 @@
       },
       {
         "id": "language-zone-candidate-boundary",
-        "package": "go-safedesign/internal/analyzers/langzone",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/analyzers/langzone",
         "allow": [
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
           "reflect",
           "sort",
           "strconv",
@@ -115,12 +115,12 @@
       },
       {
         "id": "viewer-boundary",
-        "package": "go-safedesign/internal/viewer",
+        "package": "github.com/ravinsharma7/go-safedesign/internal/viewer",
         "allow": [
           "embed",
           "encoding/json",
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/source",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/source",
           "io",
           "net/http",
           "net/http/httptest",
@@ -131,15 +131,15 @@
       },
       {
         "id": "cli-wiring-boundary",
-        "package": "go-safedesign/src",
+        "package": "github.com/ravinsharma7/go-safedesign/cmd/safedesign",
         "allow": [
           "encoding/json",
           "flag",
           "fmt",
-          "go-safedesign/internal/core",
-          "go-safedesign/internal/indexer",
-          "go-safedesign/internal/pipeline",
-          "go-safedesign/internal/viewer",
+          "github.com/ravinsharma7/go-safedesign/internal/core",
+          "github.com/ravinsharma7/go-safedesign/internal/indexer",
+          "github.com/ravinsharma7/go-safedesign/internal/pipeline",
+          "github.com/ravinsharma7/go-safedesign/internal/viewer",
           "os",
           "path/filepath",
           "reflect",
