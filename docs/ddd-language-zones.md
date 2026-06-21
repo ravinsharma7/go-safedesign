@@ -232,18 +232,21 @@ should start with summarized clusters and let the user drill down.
 
 ## Suggested Iteration Plan
 
-1. Stabilize analyzer/internal contracts as described in `docs/analyzer-stability-roadmap.md`.
-2. Add a durable observation/evidence fact type for non-warning analyzer output.
-3. Extract normalized vocabulary from Go package names, file names, type names, function
-   names, method names, field names, constants, and comments.
-4. Store original spelling, normalized tokens, source node, source location, and trust
-   level.
-5. Add term frequency and term co-occurrence facts.
-6. Join vocabulary facts with the existing dependency graph.
-7. Produce candidate language zones from vocabulary and dependency clustering.
-8. Add ambiguity and synonym candidate detection.
-9. Add an annotation import/export path using SQLite or DuckDB.
-10. Redesign the viewer around progressive disclosure after the internal facts are stable.
+Completed foundation:
+
+1. Analyzer/internal contracts are guarded by metadata and result validation.
+2. `Observation` is the durable evidence fact for non-warning analyzer output.
+3. Zero-config vocabulary extraction emits normalized term observations with source scope.
+4. Vocabulary co-occurrence emits relationship evidence without bounded-context inference.
+5. Internal observation projections provide optional convenience summaries over raw facts.
+
+Next iterations:
+
+1. Join vocabulary and co-occurrence evidence with dependency neighborhoods.
+2. Emit language-zone candidate observations, not bounded-context conclusions.
+3. Add ambiguity and synonym candidate evidence.
+4. Add an annotation import/export path using SQLite or DuckDB.
+5. Redesign the viewer around progressive disclosure after the internal facts are stable.
 
 ## Prompting Guidance
 
@@ -255,8 +258,9 @@ language-zone analysis.
 ```
 
 ```text
-Implement the first Go identifier vocabulary extraction pass without assuming service,
-repository, controller, or folder conventions.
+Implement candidate language-zone observations from existing vocabulary, co-occurrence,
+and dependency evidence without assuming service, repository, controller, or folder
+conventions.
 ```
 
 ```text

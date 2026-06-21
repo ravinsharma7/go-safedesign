@@ -757,9 +757,12 @@ input fact kinds
 minimum required trust level
 maximum emitted trust level
 emitted fact kinds
-configuration section name
 failure mode
+incomplete input policy
 ```
+
+`configuration section name` is optional. An analyzer declares it only when it consumes
+configuration.
 
 Every analyzer run MUST emit an analyzer run record:
 

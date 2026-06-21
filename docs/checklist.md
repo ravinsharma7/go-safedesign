@@ -42,6 +42,12 @@ Legend:
 - [x] Demonstrate paused path job for missing package.
 - [x] Demonstrate simulated file freshness supersession.
 - [x] Add regression tests and golden summary for the prototype.
+- [x] Add generic observation/evidence facts for analyzer outputs that are not labels, metrics, warnings, or policies.
+- [x] Add analyzer-result validation before merging facts into the canonical graph.
+- [x] Add analyzer metadata contract validation before analyzer execution.
+- [x] Add zero-config vocabulary extraction observations.
+- [x] Add vocabulary co-occurrence observations.
+- [x] Add internal convenience projections for vocabulary and co-occurrence observations.
 
 ## In Progress
 
@@ -63,8 +69,6 @@ Legend:
 - [?] Analyzer/internal stability roadmap captured in `docs/analyzer-stability-roadmap.md`.
 - [?] DDD language-zone analysis design captured in `docs/ddd-language-zones.md`.
 - [?] Separate viewer direction captured in `docs/viewer-direction.md`.
-- [?] Generic observation/evidence fact type for analyzer outputs that are not labels, metrics, warnings, or policies.
-- [?] Analyzer-result validation before merging facts into the canonical graph.
 - [?] Final analyzer interface and package layout for core versus use-case analyzers.
 - [?] Configuration schema for DDD, dependency policy, complexity weights, third-party labels, and framework extractors.
 - [?] Best reconciliation model for placeholder symbols after type information arrives.

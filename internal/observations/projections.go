@@ -2,6 +2,7 @@ package observations
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"go-safedesign/internal/core"
@@ -19,6 +20,14 @@ type SpellingSummary struct {
 	Original       string
 	Term           string
 	Count          int
+	ObservationIDs []string
+}
+
+type CooccurrenceSummary struct {
+	TermA          string
+	TermB          string
+	Count          int
+	Packages       []string
 	ObservationIDs []string
 }
 
@@ -138,6 +147,73 @@ func IncompleteDependenciesByPackage(graph core.Graph) map[string][]core.Observa
 	return out
 }
 
+func CooccurrencesByPackage(graph core.Graph) map[string][]CooccurrenceSummary {
+	byPackage := map[string]map[cooccurrenceKey]*cooccurrenceAccumulator{}
+	for _, observation := range graph.Observations {
+		cooccurrence, ok := parseCooccurrence(observation)
+		if !ok {
+			continue
+		}
+		if byPackage[cooccurrence.PackagePath] == nil {
+			byPackage[cooccurrence.PackagePath] = map[cooccurrenceKey]*cooccurrenceAccumulator{}
+		}
+		acc := byPackage[cooccurrence.PackagePath][cooccurrence.key()]
+		if acc == nil {
+			acc = newCooccurrenceAccumulator(cooccurrence.TermA, cooccurrence.TermB)
+			byPackage[cooccurrence.PackagePath][cooccurrence.key()] = acc
+		}
+		acc.add(cooccurrence)
+	}
+
+	out := map[string][]CooccurrenceSummary{}
+	for pkg, cooccurrences := range byPackage {
+		out[pkg] = sortedCooccurrenceSummaries(cooccurrences)
+	}
+	return out
+}
+
+func TopCooccurrencesByPackage(graph core.Graph, limit int) map[string][]CooccurrenceSummary {
+	cooccurrences := CooccurrencesByPackage(graph)
+	if limit <= 0 {
+		return cooccurrences
+	}
+	out := map[string][]CooccurrenceSummary{}
+	for pkg, summaries := range cooccurrences {
+		if len(summaries) > limit {
+			summaries = summaries[:limit]
+		}
+		out[pkg] = summaries
+	}
+	return out
+}
+
+func CooccurrencesByTerm(graph core.Graph) map[string][]CooccurrenceSummary {
+	byTerm := map[string]map[cooccurrenceKey]*cooccurrenceAccumulator{}
+	for _, observation := range graph.Observations {
+		cooccurrence, ok := parseCooccurrence(observation)
+		if !ok {
+			continue
+		}
+		for _, term := range []string{cooccurrence.TermA, cooccurrence.TermB} {
+			if byTerm[term] == nil {
+				byTerm[term] = map[cooccurrenceKey]*cooccurrenceAccumulator{}
+			}
+			acc := byTerm[term][cooccurrence.key()]
+			if acc == nil {
+				acc = newCooccurrenceAccumulator(cooccurrence.TermA, cooccurrence.TermB)
+				byTerm[term][cooccurrence.key()] = acc
+			}
+			acc.add(cooccurrence)
+		}
+	}
+
+	out := map[string][]CooccurrenceSummary{}
+	for term, cooccurrences := range byTerm {
+		out[term] = sortedCooccurrenceSummaries(cooccurrences)
+	}
+	return out
+}
+
 type termAccumulator struct {
 	Term           string
 	Count          int
@@ -172,6 +248,45 @@ type spellingAccumulator struct {
 	ObservationIDs []string
 }
 
+type cooccurrence struct {
+	PackagePath string
+	TermA       string
+	TermB       string
+	Count       int
+	ID          string
+}
+
+func (co cooccurrence) key() cooccurrenceKey {
+	return cooccurrenceKey{TermA: co.TermA, TermB: co.TermB}
+}
+
+type cooccurrenceKey struct {
+	TermA string
+	TermB string
+}
+
+type cooccurrenceAccumulator struct {
+	TermA          string
+	TermB          string
+	Count          int
+	Packages       map[string]bool
+	ObservationIDs []string
+}
+
+func newCooccurrenceAccumulator(termA, termB string) *cooccurrenceAccumulator {
+	return &cooccurrenceAccumulator{
+		TermA:    termA,
+		TermB:    termB,
+		Packages: map[string]bool{},
+	}
+}
+
+func (acc *cooccurrenceAccumulator) add(co cooccurrence) {
+	acc.Count += co.Count
+	acc.Packages[co.PackagePath] = true
+	acc.ObservationIDs = append(acc.ObservationIDs, co.ID)
+}
+
 func sortedTermSummaries(terms map[string]*termAccumulator) []TermSummary {
 	summaries := make([]TermSummary, 0, len(terms))
 	for _, acc := range terms {
@@ -193,8 +308,55 @@ func sortedTermSummaries(terms map[string]*termAccumulator) []TermSummary {
 	return summaries
 }
 
+func sortedCooccurrenceSummaries(cooccurrences map[cooccurrenceKey]*cooccurrenceAccumulator) []CooccurrenceSummary {
+	summaries := make([]CooccurrenceSummary, 0, len(cooccurrences))
+	for _, acc := range cooccurrences {
+		sort.Strings(acc.ObservationIDs)
+		summaries = append(summaries, CooccurrenceSummary{
+			TermA:          acc.TermA,
+			TermB:          acc.TermB,
+			Count:          acc.Count,
+			Packages:       sortedKeys(acc.Packages),
+			ObservationIDs: acc.ObservationIDs,
+		})
+	}
+	sort.Slice(summaries, func(i, j int) bool {
+		if summaries[i].Count != summaries[j].Count {
+			return summaries[i].Count > summaries[j].Count
+		}
+		if summaries[i].TermA != summaries[j].TermA {
+			return summaries[i].TermA < summaries[j].TermA
+		}
+		return summaries[i].TermB < summaries[j].TermB
+	})
+	return summaries
+}
+
 func isVocabularyTerm(observation core.Observation) bool {
 	return observation.Name == core.ObservationNameVocabularyTerm && observation.Value != ""
+}
+
+func parseCooccurrence(observation core.Observation) (cooccurrence, bool) {
+	if observation.Name != core.ObservationNameVocabularyCooccurrence {
+		return cooccurrence{}, false
+	}
+	pkg := observation.Attributes["packagePath"]
+	termA := observation.Attributes["termA"]
+	termB := observation.Attributes["termB"]
+	if pkg == "" || termA == "" || termB == "" || termA == termB {
+		return cooccurrence{}, false
+	}
+	count, err := strconv.Atoi(observation.Attributes["count"])
+	if err != nil || count <= 0 {
+		return cooccurrence{}, false
+	}
+	return cooccurrence{
+		PackagePath: pkg,
+		TermA:       termA,
+		TermB:       termB,
+		Count:       count,
+		ID:          observation.ID,
+	}, true
 }
 
 func packageFromNodeID(id string) string {
