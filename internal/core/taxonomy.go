@@ -1,6 +1,10 @@
 package core
 
-import "strings"
+import (
+	"reflect"
+	"sort"
+	"strings"
+)
 
 const (
 	NodeKindModule         = "module"
@@ -128,4 +132,123 @@ func IsObservationSource(value string) bool {
 	default:
 		return false
 	}
+}
+
+func NodeKinds() []string {
+	return sortedStrings([]string{
+		NodeKindModule,
+		NodeKindPackage,
+		NodeKindFile,
+		NodeKindFunction,
+		NodeKindMethod,
+		NodeKindType,
+		NodeKindInterface,
+		NodeKindStruct,
+		NodeKindField,
+		NodeKindImport,
+		NodeKindPlaceholder,
+		NodeKindRuntimeMarker,
+		NodeKindUnresolvedCall,
+	})
+}
+
+func EdgeKinds() []string {
+	return sortedStrings([]string{
+		EdgeKindContains,
+		EdgeKindDeclares,
+		EdgeKindImports,
+		EdgeKindCalls,
+		EdgeKindDependsOn,
+		EdgeKindViolates,
+		EdgeKindContainsRuntimeMarker,
+	})
+}
+
+func FactKinds() []string {
+	return sortedStrings([]string{
+		FactKindLabel,
+		FactKindMetric,
+		FactKindWarning,
+		FactKindPolicyResult,
+		FactKindObservation,
+		FactKindDiagnostic,
+		FactKindEdge,
+	})
+}
+
+func Statuses() []string {
+	return sortedStrings([]string{
+		StatusPass,
+		StatusFail,
+		StatusWarning,
+		StatusUnknown,
+		StatusCompleted,
+		StatusPartial,
+		StatusAnalysisError,
+	})
+}
+
+func FreshnessStatuses() []string {
+	return sortedStrings([]string{
+		FreshnessFresh,
+		FreshnessStale,
+		FreshnessSuperseded,
+		FreshnessInvalidated,
+	})
+}
+
+func ObservationNames() []string {
+	return sortedStrings([]string{
+		ObservationNameVocabularyTerm,
+		ObservationNameVocabularyIncompleteDependency,
+		ObservationNameVocabularyCooccurrence,
+		ObservationNameLanguageZoneCandidate,
+		ObservationNameBridgeSymbol,
+	})
+}
+
+func ObservationSources() []string {
+	return sortedStrings([]string{
+		ObservationSourceObserved,
+		ObservationSourceConfigured,
+		ObservationSourceInferred,
+		ObservationSourceImported,
+	})
+}
+
+func GraphJSONSections() []string {
+	graphType := reflect.TypeOf(Graph{})
+	sections := make([]string, 0, graphType.NumField())
+	for i := 0; i < graphType.NumField(); i++ {
+		tag := graphType.Field(i).Tag.Get("json")
+		name := strings.Split(tag, ",")[0]
+		if name != "" && name != "-" {
+			sections = append(sections, name)
+		}
+	}
+	return sections
+}
+
+func CanonicalGraphJSONSection(value string) (string, bool) {
+	normalized := normalizeDiscoveryValue(value)
+	for _, section := range GraphJSONSections() {
+		if normalizeDiscoveryValue(section) == normalized {
+			return section, true
+		}
+	}
+	return "", false
+}
+
+func sortedStrings(values []string) []string {
+	out := append([]string(nil), values...)
+	sort.Strings(out)
+	return out
+}
+
+func normalizeDiscoveryValue(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	value = strings.ReplaceAll(value, "_", "")
+	value = strings.ReplaceAll(value, "-", "")
+	value = strings.ReplaceAll(value, " ", "")
+	return value
 }

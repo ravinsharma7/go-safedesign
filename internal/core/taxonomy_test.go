@@ -58,3 +58,39 @@ func TestObservationSourceValidation(t *testing.T) {
 		t.Fatal("unexpected source accepted")
 	}
 }
+
+func TestGraphJSONSectionsComeFromGraphTags(t *testing.T) {
+	sections := GraphJSONSections()
+	for _, want := range []string{"nodes", "edges", "sourceRecords", "observations", "runs"} {
+		if !containsString(sections, want) {
+			t.Fatalf("sections = %#v, missing %s", sections, want)
+		}
+	}
+	if got, ok := CanonicalGraphJSONSection("source-records"); !ok || got != "sourceRecords" {
+		t.Fatalf("canonical source-records = %q, %v", got, ok)
+	}
+}
+
+func TestTrustLevelInfosFollowTrustRank(t *testing.T) {
+	infos := TrustLevelInfos()
+	if len(infos) != 3 {
+		t.Fatalf("trust infos = %#v", infos)
+	}
+	for i, info := range infos {
+		if info.Rank != i+1 {
+			t.Fatalf("trust info = %#v, rank should follow order", info)
+		}
+		if info.Description == "" {
+			t.Fatalf("trust info = %#v, description is required", info)
+		}
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}

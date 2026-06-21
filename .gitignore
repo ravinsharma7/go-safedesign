@@ -1,0 +1,3 @@
+tmp/report/
+safedesign-*.json
+!safedesign-config.json

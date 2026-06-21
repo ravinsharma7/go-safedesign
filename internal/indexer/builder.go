@@ -7,14 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"go-safedesign/internal/analyzers/bridge"
-	"go-safedesign/internal/analyzers/complexity"
-	"go-safedesign/internal/analyzers/deppolicy"
-	"go-safedesign/internal/analyzers/langzone"
-	"go-safedesign/internal/analyzers/moddep"
-	"go-safedesign/internal/analyzers/ubilang"
-	"go-safedesign/internal/analyzers/vocab"
-	"go-safedesign/internal/analyzers/vocabco"
 	"go-safedesign/internal/config"
 	"go-safedesign/internal/core"
 	"go-safedesign/internal/pipeline"
@@ -47,11 +39,13 @@ type Options struct {
 	SimulateChange    bool
 	DisablePolicyEval bool
 	DisableComplexity bool
+	AnalyzerExecution AnalyzerExecutionOptions
 }
 
 type moduleInfo struct {
-	Path string
-	Dir  string
+	Path    string
+	Dir     string
+	Reasons []string
 }
 
 type graphBuilder struct {
@@ -191,17 +185,19 @@ func BuildGraph(opts Options) (Graph, error) {
 	}); err != nil {
 		return b.graph(), err
 	}
-	b.runAnalyzer(moddep.Analyzer{})
-	b.runAnalyzer(vocab.Analyzer{})
-	b.runAnalyzer(vocabco.Analyzer{})
-	b.runAnalyzer(langzone.Analyzer{})
-	b.runAnalyzer(bridge.Analyzer{})
-	b.runAnalyzer(ublang.Analyzer{})
-	if !opts.DisableComplexity {
-		b.runAnalyzer(complexity.Analyzer{})
+	execution := opts.AnalyzerExecution
+	if opts.DisableComplexity {
+		execution.Skip = append(execution.Skip, AnalyzerIDComplexity)
 	}
-	if !opts.DisablePolicyEval {
-		b.runAnalyzer(deppolicy.Analyzer{})
+	if opts.DisablePolicyEval {
+		execution.Skip = append(execution.Skip, AnalyzerIDDependencyPolicy)
+	}
+	analyzers, err := planAnalyzers(execution)
+	if err != nil {
+		return b.graph(), err
+	}
+	for _, analyzer := range analyzers {
+		b.runAnalyzer(analyzer)
 	}
 	if err := b.runStage(pipeline.StageQueryMaterialization, func() error {
 		b.addQueriesAndPathJobs()

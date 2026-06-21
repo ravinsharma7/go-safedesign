@@ -16,6 +16,12 @@ const (
 	TrustTypeResolved   TrustLevel = "type_resolved"
 )
 
+type TrustLevelInfo struct {
+	Level       TrustLevel `json:"level"`
+	Rank        int        `json:"rank"`
+	Description string     `json:"description"`
+}
+
 type Graph struct {
 	Nodes         []Node         `json:"nodes"`
 	Edges         []Edge         `json:"edges"`
@@ -248,6 +254,39 @@ func TrustRank(level TrustLevel) int {
 		return 3
 	default:
 		return 0
+	}
+}
+
+func TrustLevels() []TrustLevel {
+	return []TrustLevel{
+		TrustSyntaxObserved,
+		TrustPackageLoaded,
+		TrustTypeResolved,
+	}
+}
+
+func TrustLevelInfos() []TrustLevelInfo {
+	infos := make([]TrustLevelInfo, 0, len(TrustLevels()))
+	for _, level := range TrustLevels() {
+		infos = append(infos, TrustLevelInfo{
+			Level:       level,
+			Rank:        TrustRank(level),
+			Description: trustLevelDescription(level),
+		})
+	}
+	return infos
+}
+
+func trustLevelDescription(level TrustLevel) string {
+	switch level {
+	case TrustSyntaxObserved:
+		return "facts observed directly from parsed source syntax without package/type resolution"
+	case TrustPackageLoaded:
+		return "facts supported by Go package loading, import resolution, or workspace/module metadata"
+	case TrustTypeResolved:
+		return "facts supported by type or symbol resolution"
+	default:
+		return "unknown or unsupported trust level"
 	}
 }
 

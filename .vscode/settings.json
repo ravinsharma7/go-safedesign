@@ -1,0 +1,8 @@
+{
+  "files.watcherExclude": {
+    "**/tmp/report/**": true
+  },
+  "search.exclude": {
+    "**/tmp/report/**": true
+  }
+}

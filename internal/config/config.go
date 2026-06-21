@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-const FileName = "safedesign.json"
+const FileName = "safedesign.config.json"
 
 type Document struct {
 	Path     string

@@ -13,7 +13,7 @@ The tool must distinguish between:
 
 The tool must not behave like grep. A negative answer must mean proven absence within the requested scope and validation level.
 
-The first implemented analyzer beyond indexing is `dependency_policy`. It evaluates package import allow lists from `safedesign.json` against canonical import edges. Each evaluated import emits a structured `policy_result`; complete disallowed imports are `fail`, allowed imports are `pass`, and incomplete placeholder-backed imports are `unknown`.
+The first implemented analyzer beyond indexing is `dependency_policy`. It evaluates package import allow lists from `safedesign.config.json` against canonical import edges. Each evaluated import emits a structured `policy_result`; complete disallowed imports are `fail`, allowed imports are `pass`, and incomplete placeholder-backed imports are `unknown`.
 
 ---
 

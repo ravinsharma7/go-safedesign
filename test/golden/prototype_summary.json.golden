@@ -25,6 +25,7 @@
     "config": 1,
     "go_file": 6,
     "go_mod": 3,
+    "module_discovery": 3,
     "project_root": 1,
     "user_entry": 1,
     "workspace_root": 1
@@ -60,7 +61,7 @@
   "pathStatuses": {},
   "freshnessStatuses": {
     "file:shop/order/service.go": "superseded",
-    "source_record:config:shop/safedesign.json": "fresh",
+    "source_record:config:shop/safedesign.config.json": "fresh",
     "source_record:go_file:payments/gateway/gateway.go": "fresh",
     "source_record:go_file:shop/cmd/app/main.go": "fresh",
     "source_record:go_file:shop/order/fragment.go": "fresh",
@@ -70,6 +71,9 @@
     "source_record:go_mod:missing-notification/go.mod": "fresh",
     "source_record:go_mod:payments/go.mod": "fresh",
     "source_record:go_mod:shop/go.mod": "fresh",
+    "source_record:module_discovery:missing-notification": "fresh",
+    "source_record:module_discovery:payments": "fresh",
+    "source_record:module_discovery:shop": "fresh",
     "source_record:project_root:shop": "fresh",
     "source_record:user_entry:shop": "fresh",
     "source_record:workspace_root:.": "fresh"

@@ -33,11 +33,140 @@ func TestBuildGraphFromNestedDirectoryPath(t *testing.T) {
 	if !hasNodeForTest(graph.Nodes, "file:order/service.go") {
 		t.Fatalf("nodes = %#v, missing source-base-relative order file", graph.Nodes)
 	}
-	if hasNodeForTest(graph.Nodes, "module:example.com/payments") {
-		t.Fatalf("nodes = %#v, default project should not scan sibling modules", graph.Nodes)
+	if !hasNodeForTest(graph.Nodes, "module:example.com/payments") {
+		t.Fatalf("nodes = %#v, local replace module should be included even without explicit workspace root", graph.Nodes)
 	}
 	if !hasSourceRecordForTest(graph.SourceRecords, "user_entry", "order") || !hasSourceRecordForTest(graph.SourceRecords, "project_root", ".") {
 		t.Fatalf("source records = %#v, missing entry/root discovery", graph.SourceRecords)
+	}
+}
+
+func TestWorkspaceRootScansSiblingModulesAndReconcilesModuleDependencies(t *testing.T) {
+	graph, err := BuildGraph(Options{
+		Path:          filepath.Join("..", "..", "testdata", "workspace", "shop"),
+		WorkspaceRoot: filepath.Join("..", "..", "testdata", "workspace"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{
+		"module:example.com/shop",
+		"module:example.com/payments",
+		"module:example.com/missing-notification",
+	} {
+		if !hasNodeForTest(graph.Nodes, id) {
+			t.Fatalf("nodes = %#v, missing %s", graph.Nodes, id)
+		}
+	}
+	for _, id := range []string{
+		"edge:depends_on:module:example.com/shop->module:example.com/payments",
+		"edge:depends_on:module:example.com/shop->module:example.com/missing-notification",
+	} {
+		edge := edgeByIDForTest(graph.Edges, id)
+		if edge == nil || !edge.Complete || edge.Synthetic || strings.HasPrefix(edge.To, core.IDPrefixPlaceholder) {
+			t.Fatalf("edge %s = %#v, want real complete module dependency", id, edge)
+		}
+	}
+}
+
+func TestMissingRequiredModuleRemainsPlaceholderDependency(t *testing.T) {
+	dir := t.TempDir()
+	writeFileForTest(t, filepath.Join(dir, "app", "go.mod"), "module example.com/app\n\ngo 1.22\n\nrequire example.com/missing v0.0.0\n")
+	writeFileForTest(t, filepath.Join(dir, "app", "main.go"), "package main\n\nfunc main() {}\n")
+
+	graph, err := BuildGraph(Options{Path: filepath.Join(dir, "app"), WorkspaceRoot: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasNodeForTest(graph.Nodes, core.PlaceholderModuleID("example.com/missing")) {
+		t.Fatalf("nodes = %#v, missing placeholder module", graph.Nodes)
+	}
+	edge := edgeByIDForTest(graph.Edges, core.EdgeID(core.EdgeKindDependsOn, core.ModuleID("example.com/app"), core.PlaceholderModuleID("example.com/missing")))
+	if edge == nil || edge.Complete || !edge.Synthetic || edge.Reason != "required_module_not_present_in_workspace" {
+		t.Fatalf("edge = %#v, want incomplete placeholder module dependency", edge)
+	}
+}
+
+func TestGoWorkUseDiscoversListedModules(t *testing.T) {
+	dir := t.TempDir()
+	writeFileForTest(t, filepath.Join(dir, "app", "go.mod"), "module example.com/app\n\ngo 1.22\n")
+	writeFileForTest(t, filepath.Join(dir, "app", "main.go"), "package main\n\nfunc main() {}\n")
+	writeFileForTest(t, filepath.Join(dir, "worker", "go.mod"), "module example.com/worker\n\ngo 1.22\n")
+	writeFileForTest(t, filepath.Join(dir, "worker", "worker.go"), "package worker\n\nfunc Run() {}\n")
+	writeFileForTest(t, filepath.Join(dir, "go.work"), "go 1.22\n\nuse (\n\t./app\n\t./worker\n)\n")
+
+	graph, err := BuildGraph(Options{Path: filepath.Join(dir, "app"), WorkspaceRoot: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasNodeForTest(graph.Nodes, core.ModuleID("example.com/worker")) {
+		t.Fatalf("nodes = %#v, missing go.work use module", graph.Nodes)
+	}
+	worker := nodeByIDForTest(graph.Nodes, core.ModuleID("example.com/worker"))
+	if worker == nil || !strings.Contains(worker.Reason, "go_work_use") {
+		t.Fatalf("worker module = %#v, want go_work_use discovery reason", worker)
+	}
+}
+
+func TestGoModReplaceDiscoversLocalModuleOutsideWorkspace(t *testing.T) {
+	dir := t.TempDir()
+	writeFileForTest(t, filepath.Join(dir, "app", "go.mod"), "module example.com/app\n\ngo 1.22\n\nrequire example.com/local v0.0.0\n\nreplace example.com/local => ../local\n")
+	writeFileForTest(t, filepath.Join(dir, "app", "main.go"), "package main\n\nimport \"example.com/local/pkg\"\n\nfunc main() { pkg.Run() }\n")
+	writeFileForTest(t, filepath.Join(dir, "local", "go.mod"), "module example.com/local\n\ngo 1.22\n")
+	writeFileForTest(t, filepath.Join(dir, "local", "pkg", "pkg.go"), "package pkg\n\nfunc Run() {}\n")
+
+	graph, err := BuildGraph(Options{Path: filepath.Join(dir, "app")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	local := nodeByIDForTest(graph.Nodes, core.ModuleID("example.com/local"))
+	if local == nil || !strings.Contains(local.Reason, "go_mod_replace") {
+		t.Fatalf("local module = %#v, want replace-discovered module outside default root", local)
+	}
+	edge := edgeByIDForTest(graph.Edges, core.EdgeID(core.EdgeKindDependsOn, core.ModuleID("example.com/app"), core.ModuleID("example.com/local")))
+	if edge == nil || !edge.Complete || edge.Synthetic {
+		t.Fatalf("edge = %#v, want complete dependency to replace-discovered module", edge)
+	}
+}
+
+func TestReplacePathWithoutGoModEmitsDiagnosticAndPlaceholder(t *testing.T) {
+	dir := t.TempDir()
+	writeFileForTest(t, filepath.Join(dir, "app", "go.mod"), "module example.com/app\n\ngo 1.22\n\nrequire example.com/bad v0.0.0\n\nreplace example.com/bad => ../bad\n")
+	writeFileForTest(t, filepath.Join(dir, "app", "main.go"), "package main\n\nfunc main() {}\n")
+	if err := os.MkdirAll(filepath.Join(dir, "bad"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	graph, err := BuildGraph(Options{Path: filepath.Join(dir, "app")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasNodeForTest(graph.Nodes, core.PlaceholderModuleID("example.com/bad")) {
+		t.Fatalf("nodes = %#v, missing placeholder for bad replace module", graph.Nodes)
+	}
+	if !hasDiagnosticReasonForTest(graph.Diagnostics, "local replace path has no go.mod") {
+		t.Fatalf("diagnostics = %#v, missing local replace diagnostic", graph.Diagnostics)
+	}
+}
+
+func TestDuplicateModuleDiscoveryReasonsAreMerged(t *testing.T) {
+	dir := t.TempDir()
+	writeFileForTest(t, filepath.Join(dir, "app", "go.mod"), "module example.com/app\n\ngo 1.22\n\nrequire example.com/lib v0.0.0\n\nreplace example.com/lib => ../lib\n")
+	writeFileForTest(t, filepath.Join(dir, "app", "main.go"), "package main\n\nfunc main() {}\n")
+	writeFileForTest(t, filepath.Join(dir, "lib", "go.mod"), "module example.com/lib\n\ngo 1.22\n")
+	writeFileForTest(t, filepath.Join(dir, "lib", "lib.go"), "package lib\n")
+	writeFileForTest(t, filepath.Join(dir, "go.work"), "go 1.22\n\nuse (\n\t./app\n\t./lib\n)\n")
+
+	graph, err := BuildGraph(Options{Path: filepath.Join(dir, "app"), WorkspaceRoot: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib := nodeByIDForTest(graph.Nodes, core.ModuleID("example.com/lib"))
+	if lib == nil || !strings.Contains(lib.Reason, "workspace_scan") || !strings.Contains(lib.Reason, "go_work_use") || !strings.Contains(lib.Reason, "go_mod_replace") {
+		t.Fatalf("lib module = %#v, want merged discovery reasons", lib)
+	}
+	if countNodesForTest(graph.Nodes, core.ModuleID("example.com/lib")) != 1 {
+		t.Fatalf("nodes = %#v, lib module should be indexed once", graph.Nodes)
 	}
 }
 
@@ -45,7 +174,7 @@ func TestSourceDiscoveryFromFileEntryWithConfigAndGoWork(t *testing.T) {
 	dir := t.TempDir()
 	writeFileForTest(t, filepath.Join(dir, "go.mod"), "module example.com/source-discovery\n\ngo 1.22\n")
 	writeFileForTest(t, filepath.Join(dir, "go.work"), "go 1.22\n\nuse .\n")
-	writeFileForTest(t, filepath.Join(dir, "safedesign.json"), `{"complexity":{"cyclomatic":{"warningThreshold":99}}}`)
+	writeFileForTest(t, filepath.Join(dir, "safedesign.config.json"), `{"complexity":{"cyclomatic":{"warningThreshold":99}}}`)
 	writeFileForTest(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
 
 	graph, err := BuildGraph(Options{Path: filepath.Join(dir, "main.go")})
@@ -59,7 +188,7 @@ func TestSourceDiscoveryFromFileEntryWithConfigAndGoWork(t *testing.T) {
 		{"user_entry", "main.go"},
 		{"project_root", "."},
 		{"workspace_root", "."},
-		{"config", "safedesign.json"},
+		{"config", "safedesign.config.json"},
 		{"go_work", "go.work"},
 		{"go_mod", "go.mod"},
 		{"go_file", "main.go"},
@@ -78,11 +207,11 @@ func TestSourceDiscoveryAllowsMissingExplicitConfig(t *testing.T) {
 	writeFileForTest(t, filepath.Join(dir, "go.mod"), "module example.com/missing-config\n\ngo 1.22\n")
 	writeFileForTest(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
 
-	graph, err := BuildGraph(Options{Path: dir, ConfigPath: filepath.Join(dir, "missing-safedesign.json")})
+	graph, err := BuildGraph(Options{Path: dir, ConfigPath: filepath.Join(dir, "missing-safedesign.config.json")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasSourceRecordForTest(graph.SourceRecords, "config", "missing-safedesign.json") {
+	if hasSourceRecordForTest(graph.SourceRecords, "config", "missing-safedesign.config.json") {
 		t.Fatalf("source records = %#v, missing config should not be recorded as present", graph.SourceRecords)
 	}
 }
@@ -148,6 +277,25 @@ func hasNodeForTest(nodes []Node, id string) bool {
 	return false
 }
 
+func nodeByIDForTest(nodes []Node, id string) *Node {
+	for i := range nodes {
+		if nodes[i].ID == id {
+			return &nodes[i]
+		}
+	}
+	return nil
+}
+
+func countNodesForTest(nodes []Node, id string) int {
+	count := 0
+	for _, node := range nodes {
+		if node.ID == id {
+			count++
+		}
+	}
+	return count
+}
+
 func hasEdgeForTest(edges []Edge, id string) bool {
 	for _, edge := range edges {
 		if edge.ID == id {
@@ -157,9 +305,27 @@ func hasEdgeForTest(edges []Edge, id string) bool {
 	return false
 }
 
+func edgeByIDForTest(edges []Edge, id string) *Edge {
+	for i := range edges {
+		if edges[i].ID == id {
+			return &edges[i]
+		}
+	}
+	return nil
+}
+
 func hasSourceRecordForTest(records []core.SourceRecord, kind, path string) bool {
 	for _, record := range records {
 		if record.Kind == kind && record.Path == path && record.RunID != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasDiagnosticReasonForTest(diagnostics []Diagnostic, reason string) bool {
+	for _, diagnostic := range diagnostics {
+		if strings.Contains(diagnostic.Reason, reason) {
 			return true
 		}
 	}

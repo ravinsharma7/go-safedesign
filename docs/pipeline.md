@@ -812,7 +812,7 @@ config hash
 rule id
 ```
 
-Current prototype configuration is loaded from `safedesign.json` at the resolved project root unless `--config` is provided. Each analyzer receives only its configured section, and analyzer run records include the section hash.
+Current prototype configuration is loaded from `safedesign.config.json` at the resolved project root unless `--config` is provided. Each analyzer receives only its configured section, and analyzer run records include the section hash.
 
 Observed facts and configured facts MUST be linked by explicit edges or source-fact references. They MUST NOT be silently merged.
 

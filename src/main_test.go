@@ -75,7 +75,7 @@ func TestPrototypeFixtureGraph(t *testing.T) {
 	if !hasFreshness(graph, "file:shop/order/service.go", "superseded") {
 		t.Fatalf("freshness = %#v, want simulated superseded record", graph.Freshness)
 	}
-	if !hasSourceRecord(graph, "go_mod", "shop/go.mod") || !hasSourceRecord(graph, "config", "shop/safedesign.json") {
+	if !hasSourceRecord(graph, "go_mod", "shop/go.mod") || !hasSourceRecord(graph, "config", "shop/safedesign.config.json") {
 		t.Fatalf("source records = %#v, missing module/config discovery", graph.SourceRecords)
 	}
 	if len(graph.Labels) < 8 || len(graph.Warnings) < 2 {
@@ -309,7 +309,7 @@ func TestSelfDogfoodGraphEmitsPolicyAndComplexityFacts(t *testing.T) {
 		t.Fatal("self dogfood graph emitted no complexity metrics")
 	}
 	if len(graph.PolicyResults) == 0 {
-		t.Fatal("self dogfood graph emitted no policy results from root safedesign.json")
+		t.Fatal("self dogfood graph emitted no policy results from root safedesign.config.json")
 	}
 	for _, result := range graph.PolicyResults {
 		if result.Status != "pass" {
