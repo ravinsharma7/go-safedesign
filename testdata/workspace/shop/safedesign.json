@@ -1,0 +1,66 @@
+{
+  "complexity": {
+    "cyclomatic": {
+      "warningThreshold": 2
+    }
+  },
+  "ubiquitousLanguage": {
+    "contexts": [
+      {
+        "id": "ordering",
+        "packagePrefixes": [
+          "example.com/shop/order"
+        ],
+        "terms": [
+          "order",
+          "payment",
+          "continue",
+          "place",
+          "gateway",
+          "request"
+        ]
+      },
+      {
+        "id": "payments",
+        "packagePrefixes": [
+          "example.com/payments"
+        ],
+        "terms": [
+          "payment",
+          "gateway",
+          "charge"
+        ]
+      }
+    ],
+    "ignoredTerms": [
+      "id",
+      "string",
+      "ctx",
+      "err",
+      "client",
+      "service",
+      "example",
+      "com",
+      "shop",
+      "payments"
+    ]
+  },
+  "packageImportPolicy": {
+    "rules": [
+      {
+        "id": "order-package-imports",
+        "package": "example.com/shop/order",
+        "allow": [
+          "example.com/shop/paymentclient"
+        ]
+      },
+      {
+        "id": "paymentclient-package-imports",
+        "package": "example.com/shop/paymentclient",
+        "allow": [
+          "example.com/payments/gateway"
+        ]
+      }
+    ]
+  }
+}

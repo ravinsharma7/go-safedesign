@@ -1,0 +1,115 @@
+{
+  "complexity": {
+    "cyclomatic": {
+      "warningThreshold": 10
+    }
+  },
+  "packageImportPolicy": {
+    "rules": [
+      {
+        "id": "complexity-analyzer-boundary",
+        "package": "go-safedesign/internal/analyzers/complexity",
+        "allow": [
+          "encoding/json",
+          "fmt",
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/pipeline",
+          "go/ast",
+          "go/parser",
+          "go/token",
+          "os",
+          "path/filepath",
+          "sort",
+          "testing"
+        ]
+      },
+      {
+        "id": "dependency-policy-analyzer-boundary",
+        "package": "go-safedesign/internal/analyzers/deppolicy",
+        "allow": [
+          "encoding/json",
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/pipeline",
+          "sort",
+          "strings",
+          "testing"
+        ]
+      },
+      {
+        "id": "module-dependency-enrichment-boundary",
+        "package": "go-safedesign/internal/analyzers/moddep",
+        "allow": [
+          "encoding/json",
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/pipeline",
+          "sort",
+          "testing"
+        ]
+      },
+      {
+        "id": "ubiquitous-language-boundary",
+        "package": "go-safedesign/internal/analyzers/ubilang",
+        "allow": [
+          "encoding/json",
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/pipeline",
+          "go-safedesign/internal/wordcase",
+          "reflect",
+          "sort",
+          "strings",
+          "testing"
+        ]
+      },
+      {
+        "id": "vocabulary-extraction-boundary",
+        "package": "go-safedesign/internal/analyzers/vocab",
+        "allow": [
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/pipeline",
+          "go-safedesign/internal/wordcase",
+          "path/filepath",
+          "reflect",
+          "sort",
+          "strconv",
+          "strings",
+          "testing"
+        ]
+      },
+      {
+        "id": "viewer-boundary",
+        "package": "go-safedesign/internal/viewer",
+        "allow": [
+          "embed",
+          "encoding/json",
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/source",
+          "io",
+          "net/http",
+          "net/http/httptest",
+          "strings",
+          "testing",
+          "path/filepath"
+        ]
+      },
+      {
+        "id": "cli-wiring-boundary",
+        "package": "go-safedesign/src",
+        "allow": [
+          "encoding/json",
+          "flag",
+          "fmt",
+          "go-safedesign/internal/core",
+          "go-safedesign/internal/indexer",
+          "go-safedesign/internal/pipeline",
+          "go-safedesign/internal/viewer",
+          "os",
+          "path/filepath",
+          "reflect",
+          "sort",
+          "strings",
+          "testing"
+        ]
+      }
+    ]
+  }
+}

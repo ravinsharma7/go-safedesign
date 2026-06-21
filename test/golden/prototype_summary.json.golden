@@ -1,0 +1,81 @@
+{
+  "nodeKinds": {
+    "field": 1,
+    "file": 6,
+    "function": 6,
+    "import": 5,
+    "interface": 1,
+    "module": 3,
+    "package": 4,
+    "placeholder": 1,
+    "runtime_marker": 6,
+    "struct": 1,
+    "unresolved_call": 6
+  },
+  "edgeKinds": {
+    "calls": 6,
+    "contains": 7,
+    "contains_runtime_marker": 6,
+    "declares": 8,
+    "depends_on": 2,
+    "imports": 5,
+    "violates": 1
+  },
+  "sourceRecordKinds": {
+    "config": 1,
+    "go_file": 6,
+    "go_mod": 3,
+    "project_root": 1,
+    "user_entry": 1,
+    "workspace_root": 1
+  },
+  "placeholders": [
+    "placeholder:package:example.com/missing-notification/notify"
+  ],
+  "runtimeMarkers": [
+    "channel_receive",
+    "channel_receive",
+    "channel_send",
+    "defer_statement",
+    "go_statement",
+    "select_statement"
+  ],
+  "packageTrust": {
+    "package:example.com/payments/gateway": "package_loaded",
+    "package:example.com/shop/cmd/app": "type_resolved",
+    "package:example.com/shop/order": "syntax_observed",
+    "package:example.com/shop/paymentclient": "type_resolved"
+  },
+  "queryStatuses": {
+    "query:complexity:domain:example.com/shop/cmd/app": "pass",
+    "query:complexity:domain:example.com/shop/order": "unknown",
+    "query:complexity:domain:example.com/shop/paymentclient": "warning",
+    "query:complexity:package:example.com/payments/gateway": "pass",
+    "query:complexity:package:example.com/shop/cmd/app": "pass",
+    "query:complexity:package:example.com/shop/order": "pass",
+    "query:complexity:package:example.com/shop/paymentclient": "warning",
+    "query:policy:example.com/shop/order": "fail",
+    "query:policy:example.com/shop/paymentclient": "pass"
+  },
+  "pathStatuses": {},
+  "freshnessStatuses": {
+    "file:shop/order/service.go": "superseded",
+    "source_record:config:shop/safedesign.json": "fresh",
+    "source_record:go_file:payments/gateway/gateway.go": "fresh",
+    "source_record:go_file:shop/cmd/app/main.go": "fresh",
+    "source_record:go_file:shop/order/fragment.go": "fresh",
+    "source_record:go_file:shop/order/service.go": "fresh",
+    "source_record:go_file:shop/paymentclient/client.go": "fresh",
+    "source_record:go_file:shop/paymentclient/runtime.go": "fresh",
+    "source_record:go_mod:missing-notification/go.mod": "fresh",
+    "source_record:go_mod:payments/go.mod": "fresh",
+    "source_record:go_mod:shop/go.mod": "fresh",
+    "source_record:project_root:shop": "fresh",
+    "source_record:user_entry:shop": "fresh",
+    "source_record:workspace_root:.": "fresh"
+  },
+  "reconciledImportIds": [
+    "edge:imports:package:example.com/shop/cmd/app->package:example.com/shop/order",
+    "edge:imports:package:example.com/shop/order->package:example.com/shop/paymentclient"
+  ]
+}

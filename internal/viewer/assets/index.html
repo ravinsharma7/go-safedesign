@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>go-safedesign viewer</title>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --line: #d8dde6;
+      --text: #1f2937;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --warn: #b45309;
+      --bad: #b91c1c;
+      --good: #047857;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 18px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(280px, 380px);
+      height: calc(100vh - 56px);
+      min-height: 520px;
+    }
+    main.code-first {
+      grid-template-columns: minmax(240px, 300px) minmax(420px, 1fr) minmax(320px, 42vw);
+    }
+    aside, section {
+      min-width: 0;
+      overflow: auto;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+    .mode-switch {
+      display: inline-flex;
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #f8fafc;
+    }
+    .mode-switch button {
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      padding: 6px 10px;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+    .mode-switch button.active {
+      background: #fff;
+      color: var(--accent);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+    .pane { padding: 14px; }
+    .summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .metric, .item, button.row, button.source-row {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 8px;
+    }
+    .metric strong { display: block; font-size: 18px; }
+    .metric span, .item span { color: var(--muted); font-size: 12px; word-break: break-word; }
+    label { display: block; color: var(--muted); font-size: 12px; margin: 12px 0 5px; }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px 8px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+    button { cursor: pointer; font: inherit; color: var(--text); }
+    button.row, button.source-row, button.item { width: 100%; text-align: left; }
+    button.row:hover, button.source-row:hover, button.item:hover, .selected {
+      border-color: var(--accent);
+      outline: 1px solid var(--accent);
+    }
+    .row-id { font-size: 12px; word-break: break-word; }
+    .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .tag {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 1px 7px;
+      color: var(--muted);
+      font-size: 11px;
+      background: #f8fafc;
+    }
+    .tag.synthetic { color: var(--bad); border-color: #fecaca; background: #fff1f2; }
+    .tag.trust { color: var(--good); border-color: #bbf7d0; background: #f0fdf4; }
+    .tag.partial { color: var(--warn); border-color: #fed7aa; background: #fff7ed; }
+    .list, .table, .source-browser { display: grid; gap: 8px; margin-top: 12px; }
+    .canvas { position: relative; overflow: hidden; background: #fbfcfe; }
+    .toolbar {
+      position: absolute;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      left: 10px;
+      top: 10px;
+      pointer-events: none;
+    }
+    .toolbar button, .toolbar label {
+      pointer-events: auto;
+      width: auto;
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 6px 9px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+    svg {
+      width: 100%;
+      height: 100%;
+      min-height: 520px;
+      display: block;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+    svg.dragging { cursor: grabbing; }
+    .edge { stroke: #94a3b8; stroke-width: 1.2; fill: none; }
+    .edge.partial { stroke: var(--warn); stroke-dasharray: 5 4; }
+    .edge.connected { stroke: var(--accent); stroke-width: 2.4; }
+    .edge.selected { stroke: var(--bad); stroke-width: 2.8; }
+    .node { cursor: pointer; }
+    .node rect { fill: #fff; stroke: #94a3b8; stroke-width: 1.2; rx: 6; }
+    .node.synthetic rect { stroke: var(--bad); stroke-dasharray: 5 3; fill: #fff7f7; }
+    .node.selected rect { stroke: var(--bad); stroke-width: 2.8; fill: #fff7ed; }
+    .node.connected rect { stroke: var(--accent); stroke-width: 2.2; }
+    .node.package rect { stroke: var(--accent); }
+    .node.module rect { stroke: var(--good); }
+    .node.runtime_marker rect { stroke: #9333ea; }
+    .node text { font-size: 11px; fill: var(--text); pointer-events: none; }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      font-size: 12px;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 6px;
+      padding: 10px;
+      overflow: auto;
+    }
+    pre.code { background: #111827; line-height: 1.5; max-height: 260px; }
+    .code-workspace { display: none; background: #fbfcfe; }
+    main.code-first .canvas {
+      grid-column: 3;
+      grid-row: 1;
+      min-height: 320px;
+      border-right: 0;
+      border-left: 1px solid var(--line);
+    }
+    main.code-first .code-workspace {
+      display: block;
+      grid-column: 2;
+      grid-row: 1;
+    }
+    main.code-first .right { display: none; }
+    .code-workspace pre.code { max-height: none; min-height: 220px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <strong>go-safedesign viewer</strong>
+      <div class="mode-switch" aria-label="navigation mode">
+        <button id="modeGraph" class="active" type="button">Graph first</button>
+        <button id="modeCode" type="button">Code first</button>
+      </div>
+    </div>
+    <div id="status">Loading graph.json</div>
+  </header>
+
+  <main id="layout">
+    <aside>
+      <div class="pane">
+        <div class="summary" id="summary"></div>
+        <label for="search">Search</label>
+        <input id="search" placeholder="node id, name, package, reason">
+        <label for="kind">Kind</label>
+        <select id="kind"></select>
+        <div class="list" id="nodeList"></div>
+      </div>
+    </aside>
+
+    <section class="canvas">
+      <div class="toolbar">
+        <button id="fitGraph" type="button">Fit</button>
+        <button id="zoomIn" type="button">+</button>
+        <button id="zoomOut" type="button">-</button>
+        <label><input id="neighborsOnly" type="checkbox"> Neighbors</label>
+      </div>
+      <svg id="graph" role="img" aria-label="dependency graph"></svg>
+    </section>
+
+    <section class="code-workspace">
+      <div class="pane">
+        <label for="codeScope">Code Navigation</label>
+        <select id="codeScope"></select>
+        <div class="source-browser" id="sourceBrowser"></div>
+        <label>Selected Code</label>
+        <pre id="primaryCodeBlock" class="code">Select a function or call.</pre>
+        <label>Calling / Related Code Blocks</label>
+        <div class="table" id="primaryRelatedBlocks"></div>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="pane">
+        <label>Selected Code</label>
+        <pre id="codeBlock" class="code">Select a source-backed node or edge.</pre>
+        <label>Related Code Blocks</label>
+        <div class="table" id="relatedBlocks"></div>
+        <label>Selected Fact</label>
+        <pre id="details">Select a node or edge.</pre>
+        <label for="policyStatus">Policy Status</label>
+        <select id="policyStatus">
+          <option value="">All policy results</option>
+          <option value="fail">Fail</option>
+          <option value="unknown">Unknown</option>
+          <option value="pass">Pass</option>
+        </select>
+        <label for="metricStatus">Metric Status</label>
+        <select id="metricStatus">
+          <option value="">All metrics</option>
+          <option value="warning">Warning</option>
+          <option value="pass">Pass</option>
+        </select>
+        <label>Queries / Paths / Diagnostics</label>
+        <div class="table" id="facts"></div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    let graph = null;
+    let selectedID = "";
+    let positions = new Map();
+    let world = { width: 900, height: 520 };
+    let view = { x: 0, y: 0, width: 900, height: 520 };
+    let drag = null;
+
+    const byID = new Map();
+    const $ = (id) => document.getElementById(id);
+    const state = {
+      layout: $("layout"),
+      modeGraph: $("modeGraph"),
+      modeCode: $("modeCode"),
+      search: $("search"),
+      kind: $("kind"),
+      nodeList: $("nodeList"),
+      codeScope: $("codeScope"),
+      sourceBrowser: $("sourceBrowser"),
+      primaryCodeBlock: $("primaryCodeBlock"),
+      primaryRelatedBlocks: $("primaryRelatedBlocks"),
+      svg: $("graph"),
+      fitGraph: $("fitGraph"),
+      zoomIn: $("zoomIn"),
+      zoomOut: $("zoomOut"),
+      neighborsOnly: $("neighborsOnly"),
+      codeBlock: $("codeBlock"),
+      relatedBlocks: $("relatedBlocks"),
+      details: $("details"),
+      policyStatus: $("policyStatus"),
+      metricStatus: $("metricStatus"),
+      facts: $("facts"),
+      summary: $("summary"),
+      status: $("status")
+    };
+
+    fetch("/graph.json")
+      .then((r) => r.json())
+      .then((data) => {
+        graph = data;
+        graph.policyResults ||= [];
+        graph.metrics ||= [];
+        graph.nodes.forEach((n) => byID.set(n.id, n));
+        graph.edges.forEach((e) => byID.set(e.id, e));
+        graph.policyResults.forEach((p) => byID.set(p.id, p));
+        graph.metrics.forEach((m) => byID.set(m.id, m));
+        state.status.textContent = graph.nodes.length + " nodes, " + graph.edges.length + " edges";
+        initControls();
+        renderAll();
+      });
+
+    state.search.addEventListener("input", renderAll);
+    state.kind.addEventListener("change", renderAll);
+    state.codeScope.addEventListener("change", renderAll);
+    state.neighborsOnly.addEventListener("change", renderAll);
+    state.policyStatus.addEventListener("change", renderFacts);
+    state.metricStatus.addEventListener("change", renderFacts);
+    state.modeGraph.addEventListener("click", () => setMode(false));
+    state.modeCode.addEventListener("click", () => setMode(true));
+    state.fitGraph.addEventListener("click", fitGraph);
+    state.zoomIn.addEventListener("click", () => zoomAtCenter(0.8));
+    state.zoomOut.addEventListener("click", () => zoomAtCenter(1.25));
+    state.svg.addEventListener("wheel", onWheel, { passive: false });
+    state.svg.addEventListener("pointerdown", onPointerDown);
+    state.svg.addEventListener("pointermove", onPointerMove);
+    state.svg.addEventListener("pointerup", endDrag);
+    state.svg.addEventListener("pointercancel", endDrag);
+
+    function initControls() {
+      const kinds = Array.from(new Set(graph.nodes.map((n) => n.kind))).sort();
+      state.kind.innerHTML = "<option value=\"\">All node kinds</option>" + kinds.map(option).join("");
+      const packages = Array.from(new Set(graph.nodes.map((n) => n.packagePath).filter(Boolean))).sort();
+      state.codeScope.innerHTML = "<option value=\"\">All source-backed facts</option>" + packages.map(option).join("");
+    }
+
+    function renderAll() {
+      const nodes = filteredNodes();
+      renderSummary();
+      renderList(nodes);
+      renderSourceBrowser();
+      renderSVG(nodes);
+      renderFacts();
+    }
+
+    function filteredNodes() {
+      const q = state.search.value.trim().toLowerCase();
+      const kind = state.kind.value;
+      return graph.nodes.filter((n) => {
+        if (kind && n.kind !== kind) return false;
+        if (!q) return true;
+        return [n.id, n.name, n.packagePath, n.modulePath, n.reason, n.sourceFile]
+          .filter(Boolean).join(" ").toLowerCase().includes(q);
+      });
+    }
+
+    function renderSummary() {
+      state.summary.innerHTML = [
+        metric(graph.nodes.length, "nodes"),
+        metric(graph.edges.length, "edges"),
+        metric(graph.nodes.filter((n) => n.synthetic).length, "synthetic"),
+        metric(graph.edges.filter((e) => !e.complete).length, "partial edges"),
+        metric(policyCount("pass"), "policy pass"),
+        metric(policyCount("fail"), "policy fail"),
+        metric(policyCount("unknown"), "policy unknown"),
+        metric(metricCount("pass"), "complexity pass"),
+        metric(metricCount("warning"), "complexity warning")
+      ].join("");
+    }
+
+    function renderList(nodes) {
+      state.nodeList.innerHTML = nodes.slice(0, 120).map((n) => row(n, "row")).join("");
+      state.nodeList.querySelectorAll("button").forEach((btn) => btn.addEventListener("click", () => selectFact(btn.dataset.id)));
+    }
+
+    function renderSourceBrowser() {
+      const scope = state.codeScope.value;
+      const q = state.search.value.trim().toLowerCase();
+      const items = graph.nodes
+        .filter((n) => (n.kind === "function" || n.kind === "method" || n.kind === "unresolved_call") && n.sourceFile)
+        .filter((n) => !scope || n.packagePath === scope)
+        .filter((n) => !q || [n.id, n.name, n.packagePath, n.sourceFile].filter(Boolean).join(" ").toLowerCase().includes(q))
+        .sort((a, b) => (a.sourceFile + a.lineRange + a.id).localeCompare(b.sourceFile + b.lineRange + b.id));
+      state.sourceBrowser.innerHTML = items.map((n) => row(n, "source-row", n.sourceFile + ":" + n.lineRange)).join("");
+      state.sourceBrowser.querySelectorAll("button").forEach((btn) => btn.addEventListener("click", () => selectFact(btn.dataset.id)));
+    }
+
+    function renderSVG(nodes) {
+      const navNodes = navigationNodes(nodes);
+      const visible = new Set(navNodes.map((n) => n.id));
+      const edges = graph.edges.filter((e) => visible.has(e.from) && visible.has(e.to));
+      const width = Math.max(900, state.svg.clientWidth || 900);
+      const groups = groupBy(navNodes, (n) => n.kind);
+      const kinds = Object.keys(groups).sort();
+      const colWidth = Math.max(190, Math.floor((width - 40) / Math.max(1, kinds.length)));
+      positions = new Map();
+      let maxRows = 1;
+
+      kinds.forEach((kind, col) => {
+        groups[kind].sort((a, b) => a.id.localeCompare(b.id)).forEach((n, rowIndex) => {
+          positions.set(n.id, { x: 20 + col * colWidth, y: 28 + rowIndex * 58 });
+          maxRows = Math.max(maxRows, rowIndex + 1);
+        });
+      });
+
+      world = { width, height: Math.max(520, 70 + maxRows * 58) };
+      applyViewBox();
+      state.svg.innerHTML = [
+        "<defs><marker id=\"arrow\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"6\" markerHeight=\"6\" orient=\"auto\"><path d=\"M0 0L10 5L0 10z\" fill=\"#94a3b8\"></path></marker></defs>",
+        edges.map(drawEdge).join(""),
+        navNodes.map(drawNode).join("")
+      ].join("");
+      state.svg.querySelectorAll("[data-id]").forEach((el) => {
+        el.addEventListener("click", (event) => {
+          event.stopPropagation();
+          selectFact(el.dataset.id);
+        });
+      });
+    }
+
+    function drawEdge(edge) {
+      const from = positions.get(edge.from);
+      const to = positions.get(edge.to);
+      if (!from || !to) return "";
+      const x1 = from.x + 170, y1 = from.y + 18, x2 = to.x, y2 = to.y + 18, mx = (x1 + x2) / 2;
+      const selectedGraphID = graphSelectionID();
+      const cls = ["edge", edge.complete ? "" : "partial", edge.id === selectedGraphID ? "selected" : "", edgeTouchesSelection(edge) ? "connected" : ""].filter(Boolean).join(" ");
+      return "<path class=\"" + cls + "\" data-id=\"" + attr(edge.id) + "\" marker-end=\"url(#arrow)\" d=\"M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2 + "\"></path>";
+    }
+
+    function drawNode(node) {
+      const p = positions.get(node.id);
+      if (!p) return "";
+      const selectedGraphID = graphSelectionID();
+      const cls = ["node", node.kind, node.synthetic ? "synthetic" : "", node.id === selectedGraphID ? "selected" : "", nodeTouchesSelection(node.id) ? "connected" : ""].filter(Boolean).join(" ");
+      return "<g class=\"" + cls + "\" data-id=\"" + attr(node.id) + "\" transform=\"translate(" + p.x + " " + p.y + ")\"><rect width=\"170\" height=\"38\"></rect><text x=\"8\" y=\"15\">" + esc(mid(node.name || node.id, 24)) + "</text><text x=\"8\" y=\"30\">" + esc(mid(node.trustLevel, 22)) + "</text></g>";
+    }
+
+    function selectFact(id) {
+      selectedID = id;
+      const fact = byID.get(id);
+      state.details.textContent = JSON.stringify(fact || { id }, null, 2);
+      renderCode(fact);
+      renderList(filteredNodes());
+      renderSourceBrowser();
+      renderSVG(filteredNodes());
+    }
+
+    function renderCode(fact) {
+      state.codeBlock.textContent = state.primaryCodeBlock.textContent = "No source location for this fact.";
+      state.relatedBlocks.innerHTML = state.primaryRelatedBlocks.innerHTML = "";
+      if (!fact || !fact.sourceFile) return;
+      fetchSource(fact).then((block) => {
+        state.codeBlock.textContent = state.primaryCodeBlock.textContent = block.code;
+      }).catch((err) => {
+        state.codeBlock.textContent = state.primaryCodeBlock.textContent = String(err);
+      });
+      renderRelated(fact);
+    }
+
+    function renderRelated(fact) {
+      const related = relatedFacts(fact);
+      if (!related.length) {
+        const empty = "<div class=\"item\"><strong>No related source blocks</strong><span>Try selecting a function or unresolved call.</span></div>";
+        state.relatedBlocks.innerHTML = state.primaryRelatedBlocks.innerHTML = empty;
+        return;
+      }
+      const html = related.map((item) => "<div class=\"item\"><strong>" + esc(item.label) + "</strong><span>" + esc(item.fact.id) + "</span><pre class=\"code\" id=\"code-" + attr(item.fact.id) + "\">Loading...</pre></div>").join("");
+      state.relatedBlocks.innerHTML = html;
+      state.primaryRelatedBlocks.innerHTML = html.replaceAll("id=\"code-", "id=\"primary-code-");
+      related.forEach((item) => fetchSource(item.fact).then((block) => {
+        const right = $("code-" + item.fact.id);
+        const primary = $("primary-code-" + item.fact.id);
+        if (right) right.textContent = block.code;
+        if (primary) primary.textContent = block.code;
+      }));
+    }
+
+    function relatedFacts(fact) {
+      const out = [];
+      if (fact.kind === "function" || fact.kind === "method") {
+        graph.nodes.filter((n) => n.kind === "unresolved_call" && n.sourceFile === fact.sourceFile && containsRange(fact.lineRange, n.lineRange))
+          .forEach((n) => out.push({ label: "Observed call inside selected function", fact: n }));
+      } else if (fact.kind === "unresolved_call") {
+        graph.nodes.filter((n) => (n.kind === "function" || n.kind === "method") && n.sourceFile === fact.sourceFile && containsRange(n.lineRange, fact.lineRange))
+          .forEach((n) => out.push({ label: "Containing function", fact: n }));
+        graph.nodes.filter((n) => (n.kind === "function" || n.kind === "method") && n.name && fact.name && fact.name.endsWith("." + n.name))
+          .forEach((n) => out.push({ label: "Name-matched function candidate", fact: n }));
+      } else if (fact.kind === "policy_result") {
+        (fact.evidence || []).map((id) => byID.get(id)).filter(Boolean)
+          .forEach((e) => out.push({ label: "Policy evidence", fact: e }));
+      } else if (fact.kind === "metric") {
+        (fact.evidence || []).map((id) => byID.get(id)).filter(Boolean)
+          .forEach((e) => out.push({ label: "Metric evidence", fact: e }));
+      } else {
+        graph.edges.filter((e) => (e.from === fact.id || e.to === fact.id) && e.sourceFile)
+          .forEach((e) => out.push({ label: "Connected edge source", fact: e }));
+      }
+      return out.filter((item, idx, arr) => arr.findIndex((other) => other.fact.id === item.fact.id) === idx).slice(0, 8);
+    }
+
+    function renderFacts() {
+      const policyStatus = state.policyStatus.value;
+      const metricStatus = state.metricStatus.value;
+      const policies = (graph.policyResults || []).filter((p) => !policyStatus || p.status === policyStatus);
+      const metrics = (graph.metrics || []).filter((m) => !metricStatus || m.status === metricStatus);
+      state.facts.innerHTML = graph.queries.map((q) => item("Query: " + q.status, q.query + " / " + q.reason))
+        .concat(graph.pathJobs.map((p) => item("Path: " + p.status, p.blockingReason)))
+        .concat(policies.map((p) => factItem("Policy: " + p.status, p.ruleId + " / " + p.subject, p.id)))
+        .concat(metrics.map((m) => factItem("Metric: " + m.status, m.name + " = " + m.value + " " + m.unit + " / " + m.subject, m.id)))
+        .concat(graph.freshness.map((f) => item("Freshness: " + f.status, f.sourceFile)))
+        .concat(graph.diagnostics.map((d) => item("Diagnostic: " + d.level, d.reason)))
+        .concat((graph.runs || []).map((r) => item("Run: " + r.stage + " / " + r.status, String(r.emittedFacts) + " emitted facts")))
+        .join("");
+      state.facts.querySelectorAll("button").forEach((btn) => btn.addEventListener("click", () => selectFact(btn.dataset.id)));
+    }
+
+    function setMode(codeFirst) {
+      state.layout.classList.toggle("code-first", codeFirst);
+      state.modeCode.classList.toggle("active", codeFirst);
+      state.modeGraph.classList.toggle("active", !codeFirst);
+      setTimeout(() => renderSVG(filteredNodes()), 0);
+    }
+    function navigationNodes(nodes) {
+      if (!state.neighborsOnly.checked || !selectedID) return nodes;
+      const selectedGraphID = graphSelectionID();
+      const keep = new Set([selectedGraphID]);
+      graph.edges.forEach((e) => {
+        if (e.from === selectedGraphID) keep.add(e.to);
+        if (e.to === selectedGraphID) keep.add(e.from);
+        if (e.id === selectedGraphID) {
+          keep.add(e.from);
+          keep.add(e.to);
+        }
+      });
+      return nodes.filter((n) => keep.has(n.id));
+    }
+    function nodeTouchesSelection(id) {
+      const selectedGraphID = graphSelectionID();
+      return selectedGraphID && id !== selectedGraphID && graph.edges.some((e) => (e.from === selectedGraphID && e.to === id) || (e.to === selectedGraphID && e.from === id) || (e.id === selectedGraphID && (e.from === id || e.to === id)));
+    }
+    function edgeTouchesSelection(edge) {
+      const selectedGraphID = graphSelectionID();
+      return selectedGraphID && edge.id !== selectedGraphID && (edge.from === selectedGraphID || edge.to === selectedGraphID);
+    }
+    function graphSelectionID() {
+      const fact = byID.get(selectedID);
+      return fact && fact.kind === "policy_result" && fact.evidence && fact.evidence.length ? fact.evidence[0] : selectedID;
+    }
+    function fitGraph() {
+      view = { x: -24, y: -24, width: world.width + 48, height: world.height + 48 };
+      applyViewBox();
+    }
+    function applyViewBox() {
+      state.svg.setAttribute("viewBox", [view.x, view.y, view.width, view.height].join(" "));
+    }
+    function zoomAtCenter(factor) {
+      view = { x: view.x + view.width * (1 - factor) / 2, y: view.y + view.height * (1 - factor) / 2, width: view.width * factor, height: view.height * factor };
+      applyViewBox();
+    }
+    function onWheel(event) {
+      event.preventDefault();
+      zoomAtCenter(event.deltaY < 0 ? 0.85 : 1.18);
+    }
+    function onPointerDown(event) {
+      if (event.target.closest("[data-id]")) return;
+      drag = { x: event.clientX, y: event.clientY, vx: view.x, vy: view.y, id: event.pointerId };
+      state.svg.classList.add("dragging");
+      state.svg.setPointerCapture(event.pointerId);
+    }
+    function onPointerMove(event) {
+      if (!drag || drag.id !== event.pointerId) return;
+      view.x = drag.vx - (event.clientX - drag.x) * view.width / Math.max(1, state.svg.clientWidth);
+      view.y = drag.vy - (event.clientY - drag.y) * view.height / Math.max(1, state.svg.clientHeight);
+      applyViewBox();
+    }
+    function endDrag(event) {
+      if (!drag || drag.id !== event.pointerId) return;
+      drag = null;
+      state.svg.classList.remove("dragging");
+    }
+    function fetchSource(fact) {
+      return fetch("/source?" + new URLSearchParams({ file: fact.sourceFile, range: fact.lineRange || "" }))
+        .then((r) => r.ok ? r.json() : r.text().then((text) => { throw new Error(text); }));
+    }
+    function containsRange(outer, inner) {
+      const a = parseRange(outer), b = parseRange(inner);
+      return a && b && a.start <= b.start && a.end >= b.end;
+    }
+    function parseRange(value) {
+      const m = String(value || "").match(/^(\d+):\d+-(\d+):\d+$/);
+      return m && { start: Number(m[1]), end: Number(m[2]) };
+    }
+    function groupBy(items, fn) {
+      return items.reduce((acc, item) => ((acc[fn(item)] ||= []).push(item), acc), {});
+    }
+    function row(node, cls, extra) {
+      return "<button class=\"" + cls + " " + (node.id === selectedID ? "selected" : "") + "\" data-id=\"" + attr(node.id) + "\"><div class=\"row-id\">" + esc(node.name || node.id) + "</div><div class=\"tags\">" + tag(node.kind, "") + tag(node.trustLevel, "trust") + (node.synthetic ? tag("synthetic", "synthetic") : "") + (extra ? tag(extra, "") : "") + "</div></button>";
+    }
+    function metric(value, label) {
+      return "<div class=\"metric\"><strong>" + value + "</strong><span>" + esc(label) + "</span></div>";
+    }
+    function policyCount(status) {
+      return (graph.policyResults || []).filter((p) => p.status === status).length;
+    }
+    function metricCount(status) {
+      return (graph.metrics || []).filter((m) => m.status === status).length;
+    }
+    function item(title, text) {
+      return "<div class=\"item\"><strong>" + esc(title) + "</strong><span>" + esc(text || "") + "</span></div>";
+    }
+    function factItem(title, text, id) {
+      return "<button class=\"item\" data-id=\"" + attr(id) + "\"><strong>" + esc(title) + "</strong><span>" + esc(text || "") + "</span></button>";
+    }
+    function tag(value, cls) {
+      return "<span class=\"tag " + cls + "\">" + esc(value || "") + "</span>";
+    }
+    function option(value) {
+      return "<option>" + esc(value) + "</option>";
+    }
+    function esc(value) {
+      return String(value || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+    }
+    function attr(value) {
+      return esc(value).replace(new RegExp(String.fromCharCode(96), "g"), "&#96;");
+    }
+    function mid(value, max) {
+      value = String(value || "");
+      return value.length <= max ? value : value.slice(0, Math.ceil((max - 1) / 2)) + "…" + value.slice(value.length - Math.floor((max - 1) / 2));
+    }
+  </script>
+</body>
+</html>
