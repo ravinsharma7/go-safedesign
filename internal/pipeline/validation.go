@@ -7,6 +7,114 @@ import (
 	"go-safedesign/internal/core"
 )
 
+func ValidateAnalyzerMetadata(metadata AnalyzerMetadata) []core.Diagnostic {
+	validation := metadataValidation{metadata: metadata}
+	validation.require("id", metadata.ID)
+	validation.require("version", metadata.Version)
+	validation.requireStage()
+	validation.requireFactKinds("input fact kinds", metadata.InputFactKinds, nil)
+	validation.requireTrust("minimum required trust", metadata.MinimumRequiredTrust)
+	validation.requireTrust("maximum emitted trust", metadata.MaximumEmittedTrust)
+	validation.validateTrustRange()
+	validation.requireFactKinds("emitted fact kinds", metadata.EmittedFactKinds, isSupportedEmittedFactKind)
+	validation.requireFailureMode()
+	validation.requireIncompleteInputPolicy()
+	return validation.diagnostics
+}
+
+type metadataValidation struct {
+	metadata    AnalyzerMetadata
+	diagnostics []core.Diagnostic
+}
+
+func (v *metadataValidation) add(reason string) {
+	v.diagnostics = append(v.diagnostics, core.Diagnostic{
+		Level:      "error",
+		Source:     "analyzer:" + v.metadata.ID,
+		Reason:     reason,
+		Stage:      string(v.metadata.Stage),
+		AnalyzerID: v.metadata.ID,
+		Status:     core.StatusAnalysisError,
+		TrustLevel: v.metadata.MaximumEmittedTrust,
+	})
+}
+
+func (v *metadataValidation) require(name, value string) {
+	if value == "" {
+		v.add("analyzer metadata missing " + name)
+	}
+}
+
+func (v *metadataValidation) requireStage() {
+	if v.metadata.Stage == "" {
+		v.add("analyzer metadata missing stage")
+		return
+	}
+	if !isSupportedStage(v.metadata.Stage) {
+		v.add("analyzer metadata has unsupported stage " + string(v.metadata.Stage))
+	}
+}
+
+func (v *metadataValidation) requireFactKinds(name string, kinds []string, supported func(string) bool) {
+	if len(kinds) == 0 {
+		v.add("analyzer metadata missing " + name)
+		return
+	}
+	if supported == nil {
+		return
+	}
+	for _, kind := range kinds {
+		if !supported(kind) {
+			v.add("analyzer metadata has unsupported " + singularFactKindName(name) + " " + kind)
+		}
+	}
+}
+
+func (v *metadataValidation) requireTrust(name string, trust core.TrustLevel) {
+	if trust == "" {
+		v.add("analyzer metadata missing " + name)
+		return
+	}
+	if !isSupportedTrust(trust) {
+		v.add("analyzer metadata has unsupported " + name + " " + string(trust))
+	}
+}
+
+func (v *metadataValidation) validateTrustRange() {
+	minimum := v.metadata.MinimumRequiredTrust
+	maximum := v.metadata.MaximumEmittedTrust
+	if isSupportedTrust(minimum) && isSupportedTrust(maximum) && core.TrustRank(minimum) > core.TrustRank(maximum) {
+		v.add(fmt.Sprintf("analyzer metadata minimum required trust %s exceeds maximum emitted trust %s", minimum, maximum))
+	}
+}
+
+func (v *metadataValidation) requireFailureMode() {
+	if v.metadata.FailureMode == "" {
+		v.add("analyzer metadata missing failure mode")
+		return
+	}
+	if v.metadata.FailureMode != FailureModePartial {
+		v.add("analyzer metadata has unsupported failure mode " + v.metadata.FailureMode)
+	}
+}
+
+func (v *metadataValidation) requireIncompleteInputPolicy() {
+	if v.metadata.IncompleteInputPolicy == "" {
+		v.add("analyzer metadata missing incomplete input policy")
+		return
+	}
+	if !isSupportedIncompleteInputPolicy(v.metadata.IncompleteInputPolicy) {
+		v.add("analyzer metadata has unsupported incomplete input policy " + string(v.metadata.IncompleteInputPolicy))
+	}
+}
+
+func singularFactKindName(name string) string {
+	if name == "emitted fact kinds" {
+		return "emitted fact kind"
+	}
+	return name
+}
+
 func ValidateAnalyzerResult(graph core.Graph, metadata AnalyzerMetadata, result AnalyzerResult) []core.Diagnostic {
 	known := knownFactIDs(graph, result)
 	emitted := emittedFactKinds(result)
@@ -129,6 +237,56 @@ func validateObservationSource(add func(string), observation core.Observation) {
 		add("observation " + observation.ID + " missing source")
 	default:
 		add("observation " + observation.ID + " has unsupported source " + observation.Source)
+	}
+}
+
+func isSupportedStage(stage Stage) bool {
+	switch stage {
+	case StageSourceDiscovery,
+		StageModuleExtraction,
+		StageSyntaxExtraction,
+		StageBaseGraphAssembly,
+		StagePackageLoading,
+		StageTypeResolution,
+		StageModuleDependencyEnrichment,
+		StageThirdPartyBehaviorLabeling,
+		StageFrameworkExtraction,
+		StageDDDClassification,
+		StageComplexityMetrics,
+		StagePolicyEvaluation,
+		StageQueryMaterialization,
+		StageRendering:
+		return true
+	default:
+		return false
+	}
+}
+
+func isSupportedTrust(trust core.TrustLevel) bool {
+	return core.TrustRank(trust) > 0
+}
+
+func isSupportedEmittedFactKind(kind string) bool {
+	switch kind {
+	case core.FactKindLabel,
+		core.FactKindMetric,
+		core.FactKindWarning,
+		core.FactKindPolicyResult,
+		core.FactKindObservation,
+		core.FactKindDiagnostic,
+		core.FactKindEdge:
+		return true
+	default:
+		return false
+	}
+}
+
+func isSupportedIncompleteInputPolicy(policy IncompleteInputPolicy) bool {
+	switch policy {
+	case IncompleteInputRequireComplete, IncompleteInputSkipScope, IncompleteInputAllow:
+		return true
+	default:
+		return false
 	}
 }
 

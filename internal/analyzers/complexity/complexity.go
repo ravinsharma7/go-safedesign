@@ -101,15 +101,16 @@ type Analyzer struct{}
 
 func (Analyzer) Metadata() pipeline.AnalyzerMetadata {
 	return pipeline.AnalyzerMetadata{
-		ID:                   ID,
-		Version:              Version,
-		Stage:                pipeline.StageComplexityMetrics,
-		InputFactKinds:       []string{core.NodeKindFunction, core.NodeKindMethod},
-		MinimumRequiredTrust: core.TrustSyntaxObserved,
-		MaximumEmittedTrust:  core.TrustSyntaxObserved,
-		EmittedFactKinds:     []string{core.FactKindMetric, core.FactKindDiagnostic},
-		ConfigurationSection: "complexity",
-		FailureMode:          pipeline.FailureModePartial,
+		ID:                    ID,
+		Version:               Version,
+		Stage:                 pipeline.StageComplexityMetrics,
+		InputFactKinds:        []string{core.NodeKindFunction, core.NodeKindMethod},
+		MinimumRequiredTrust:  core.TrustSyntaxObserved,
+		MaximumEmittedTrust:   core.TrustSyntaxObserved,
+		EmittedFactKinds:      []string{core.FactKindMetric, core.FactKindDiagnostic},
+		ConfigurationSection:  "complexity",
+		FailureMode:           pipeline.FailureModePartial,
+		IncompleteInputPolicy: pipeline.IncompleteInputRequireComplete,
 	}
 }
 

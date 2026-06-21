@@ -252,6 +252,26 @@ func (b *graphBuilder) runStage(stage pipeline.Stage, fn func() error) error {
 
 func (b *graphBuilder) runAnalyzer(analyzer pipeline.Analyzer) {
 	metadata := analyzer.Metadata()
+	if diagnostics := pipeline.ValidateAnalyzerMetadata(metadata); len(diagnostics) > 0 {
+		started := time.Now().UTC()
+		run := core.RunRecord{
+			RunID:           pipeline.RunID(string(metadata.Stage), metadata.ID, started),
+			AnalyzerID:      metadata.ID,
+			AnalyzerVersion: metadata.Version,
+			Stage:           string(metadata.Stage),
+			StartedAt:       started.Format(time.RFC3339Nano),
+			FinishedAt:      started.Format(time.RFC3339Nano),
+			Status:          core.StatusAnalysisError,
+			Diagnostics:     diagnosticMessages(diagnostics),
+			EmittedFacts:    0,
+		}
+		for i := range diagnostics {
+			diagnostics[i].FactMetadata = metadataForRun(run)
+		}
+		b.diagnostics = append(b.diagnostics, diagnostics...)
+		b.runs = append(b.runs, run)
+		return
+	}
 	if diagnostics := b.readinessDiagnostics(metadata); len(diagnostics) > 0 {
 		started := time.Now().UTC()
 		run := core.RunRecord{

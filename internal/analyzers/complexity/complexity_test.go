@@ -236,7 +236,7 @@ func TestAnalyzerRequiresSyntaxSnapshot(t *testing.T) {
 
 func TestMetadataUsesComplexityMetricsStage(t *testing.T) {
 	metadata := Metadata()
-	if metadata.ID != ID || metadata.Stage != pipeline.StageComplexityMetrics {
+	if metadata.ID != ID || metadata.Stage != pipeline.StageComplexityMetrics || metadata.IncompleteInputPolicy != pipeline.IncompleteInputRequireComplete {
 		t.Fatalf("metadata = %#v", metadata)
 	}
 }

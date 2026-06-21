@@ -92,7 +92,7 @@ func TestAnalyzerNoConfigEmitsNothing(t *testing.T) {
 
 func TestMetadataUsesDDDClassificationStage(t *testing.T) {
 	metadata := Metadata()
-	if metadata.ID != ID || metadata.Stage != pipeline.StageDDDClassification {
+	if metadata.ID != ID || metadata.Stage != pipeline.StageDDDClassification || metadata.IncompleteInputPolicy != pipeline.IncompleteInputRequireComplete {
 		t.Fatalf("metadata = %#v", metadata)
 	}
 }

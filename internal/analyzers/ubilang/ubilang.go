@@ -43,15 +43,16 @@ type normalizedContext struct {
 
 func (Analyzer) Metadata() pipeline.AnalyzerMetadata {
 	return pipeline.AnalyzerMetadata{
-		ID:                   ID,
-		Version:              Version,
-		Stage:                pipeline.StageDDDClassification,
-		InputFactKinds:       []string{core.NodeKindModule, core.NodeKindPackage, core.NodeKindFunction, core.NodeKindMethod, core.NodeKindType, core.NodeKindInterface, core.NodeKindStruct, core.NodeKindField},
-		MinimumRequiredTrust: core.TrustSyntaxObserved,
-		MaximumEmittedTrust:  core.TrustTypeResolved,
-		EmittedFactKinds:     []string{core.FactKindLabel, core.FactKindMetric, core.FactKindWarning},
-		ConfigurationSection: "ubiquitousLanguage",
-		FailureMode:          pipeline.FailureModePartial,
+		ID:                    ID,
+		Version:               Version,
+		Stage:                 pipeline.StageDDDClassification,
+		InputFactKinds:        []string{core.NodeKindModule, core.NodeKindPackage, core.NodeKindFunction, core.NodeKindMethod, core.NodeKindType, core.NodeKindInterface, core.NodeKindStruct, core.NodeKindField},
+		MinimumRequiredTrust:  core.TrustSyntaxObserved,
+		MaximumEmittedTrust:   core.TrustTypeResolved,
+		EmittedFactKinds:      []string{core.FactKindLabel, core.FactKindMetric, core.FactKindWarning},
+		ConfigurationSection:  "ubiquitousLanguage",
+		FailureMode:           pipeline.FailureModePartial,
+		IncompleteInputPolicy: pipeline.IncompleteInputRequireComplete,
 	}
 }
 

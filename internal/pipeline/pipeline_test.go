@@ -156,6 +156,83 @@ func TestValidateAnalyzerResultAcceptsObservation(t *testing.T) {
 	}
 }
 
+func TestValidateAnalyzerMetadataAcceptsValidMetadata(t *testing.T) {
+	metadata := validAnalyzerMetadataForTest()
+	if diagnostics := ValidateAnalyzerMetadata(metadata); len(diagnostics) != 0 {
+		t.Fatalf("diagnostics = %#v, want none", diagnostics)
+	}
+}
+
+func TestValidateAnalyzerMetadataRejectsMissingRequiredFields(t *testing.T) {
+	diagnostics := ValidateAnalyzerMetadata(AnalyzerMetadata{})
+	wants := []string{
+		"missing id",
+		"missing version",
+		"missing stage",
+		"missing input fact kinds",
+		"missing minimum required trust",
+		"missing maximum emitted trust",
+		"missing emitted fact kinds",
+		"missing failure mode",
+		"missing incomplete input policy",
+	}
+	for _, want := range wants {
+		if !hasValidationReason(diagnostics, want) {
+			t.Fatalf("diagnostics = %#v, missing %q", diagnostics, want)
+		}
+	}
+}
+
+func TestValidateAnalyzerMetadataRejectsUnsupportedValues(t *testing.T) {
+	metadata := validAnalyzerMetadataForTest()
+	metadata.Stage = "custom_stage"
+	metadata.MinimumRequiredTrust = "guessed"
+	metadata.MaximumEmittedTrust = "claimed"
+	metadata.EmittedFactKinds = []string{"custom_fact"}
+	metadata.FailureMode = "abort"
+	metadata.IncompleteInputPolicy = "maybe"
+
+	diagnostics := ValidateAnalyzerMetadata(metadata)
+	wants := []string{
+		"unsupported stage",
+		"unsupported minimum required trust",
+		"unsupported maximum emitted trust",
+		"unsupported emitted fact kind",
+		"unsupported failure mode",
+		"unsupported incomplete input policy",
+	}
+	for _, want := range wants {
+		if !hasValidationReason(diagnostics, want) {
+			t.Fatalf("diagnostics = %#v, missing %q", diagnostics, want)
+		}
+	}
+}
+
+func TestValidateAnalyzerMetadataRejectsTrustRangeInversion(t *testing.T) {
+	metadata := validAnalyzerMetadataForTest()
+	metadata.MinimumRequiredTrust = core.TrustTypeResolved
+	metadata.MaximumEmittedTrust = core.TrustSyntaxObserved
+
+	diagnostics := ValidateAnalyzerMetadata(metadata)
+	if !hasValidationReason(diagnostics, "minimum required trust type_resolved exceeds maximum emitted trust syntax_observed") {
+		t.Fatalf("diagnostics = %#v, missing trust range failure", diagnostics)
+	}
+}
+
+func validAnalyzerMetadataForTest() AnalyzerMetadata {
+	return AnalyzerMetadata{
+		ID:                    "valid",
+		Version:               "test",
+		Stage:                 StageDDDClassification,
+		InputFactKinds:        []string{core.NodeKindPackage},
+		MinimumRequiredTrust:  core.TrustSyntaxObserved,
+		MaximumEmittedTrust:   core.TrustTypeResolved,
+		EmittedFactKinds:      []string{core.FactKindObservation},
+		FailureMode:           FailureModePartial,
+		IncompleteInputPolicy: IncompleteInputRequireComplete,
+	}
+}
+
 func hasValidationReason(diagnostics []core.Diagnostic, want string) bool {
 	for _, diagnostic := range diagnostics {
 		if strings.Contains(diagnostic.Reason, want) {
